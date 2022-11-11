@@ -1,0 +1,9 @@
+[submodule "submodule/GFMSG"]
+	path = submodule/GFMSG
+	url = https://github.com/Fortelle/GFMSG.git
+[submodule "Modules/GFMSG"]
+	path = Modules/GFMSG
+	url = https://github.com/Fortelle/GFMSG.git
+[submodule "Modules/DowsingMachine"]
+	path = Modules/DowsingMachine
+	url = https://github.com/Fortelle/DowsingMachine
