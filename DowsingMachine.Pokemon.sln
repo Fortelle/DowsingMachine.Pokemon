@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32929.385
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DowsingMachine.Pokemon.Launcher", "DowsingMachine.Pokemon.Launcher\DowsingMachine.Pokemon.Launcher.csproj", "{3E03704F-9B67-438F-BE9F-19174208C348}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DowsingMachine.Pokemon", "DowsingMachine.Pokemon\DowsingMachine.Pokemon.csproj", "{ABD66613-A4BF-405E-BB48-6A0F860C6EA3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DowsingMachine.Pokemon.Core", "DowsingMachine.Pokemon.Core\DowsingMachine.Pokemon.Core.csproj", "{40619F78-5AB1-45E8-8FBA-D0D95000BAFA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DowsingMachine", "Modules\DowsingMachine\DowsingMachine.csproj", "{49353D59-A8C8-45B3-BAE0-C1194E8ACA9A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GFMSG", "Modules\GFMSG\GFMSG\GFMSG.csproj", "{ECDA1C70-A057-4AB8-8D23-CEEB0A87A5B1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GFMSG.GUI", "Modules\GFMSG\GFMSG.GUI\GFMSG.GUI.csproj", "{8D84A64D-C43E-426E-ABCC-A25E2D8094BE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Modules", "Modules", "{CCCC5E0B-6A66-455D-98B4-F9F2BE11DCED}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3E03704F-9B67-438F-BE9F-19174208C348}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E03704F-9B67-438F-BE9F-19174208C348}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E03704F-9B67-438F-BE9F-19174208C348}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E03704F-9B67-438F-BE9F-19174208C348}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ABD66613-A4BF-405E-BB48-6A0F860C6EA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ABD66613-A4BF-405E-BB48-6A0F860C6EA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ABD66613-A4BF-405E-BB48-6A0F860C6EA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ABD66613-A4BF-405E-BB48-6A0F860C6EA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{40619F78-5AB1-45E8-8FBA-D0D95000BAFA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40619F78-5AB1-45E8-8FBA-D0D95000BAFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40619F78-5AB1-45E8-8FBA-D0D95000BAFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40619F78-5AB1-45E8-8FBA-D0D95000BAFA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49353D59-A8C8-45B3-BAE0-C1194E8ACA9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49353D59-A8C8-45B3-BAE0-C1194E8ACA9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49353D59-A8C8-45B3-BAE0-C1194E8ACA9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49353D59-A8C8-45B3-BAE0-C1194E8ACA9A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ECDA1C70-A057-4AB8-8D23-CEEB0A87A5B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ECDA1C70-A057-4AB8-8D23-CEEB0A87A5B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ECDA1C70-A057-4AB8-8D23-CEEB0A87A5B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ECDA1C70-A057-4AB8-8D23-CEEB0A87A5B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D84A64D-C43E-426E-ABCC-A25E2D8094BE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D84A64D-C43E-426E-ABCC-A25E2D8094BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D84A64D-C43E-426E-ABCC-A25E2D8094BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D84A64D-C43E-426E-ABCC-A25E2D8094BE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{49353D59-A8C8-45B3-BAE0-C1194E8ACA9A} = {CCCC5E0B-6A66-455D-98B4-F9F2BE11DCED}
+		{ECDA1C70-A057-4AB8-8D23-CEEB0A87A5B1} = {CCCC5E0B-6A66-455D-98B4-F9F2BE11DCED}
+		{8D84A64D-C43E-426E-ABCC-A25E2D8094BE} = {CCCC5E0B-6A66-455D-98B4-F9F2BE11DCED}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {060199EC-4396-41BB-8807-025ACCA96B74}
+	EndGlobalSection
+EndGlobal

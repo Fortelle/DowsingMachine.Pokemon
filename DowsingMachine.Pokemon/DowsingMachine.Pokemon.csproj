@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>PBT.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\DowsingMachine\DowsingMachine.csproj" />
+    <ProjectReference Include="..\Modules\GFMSG\GFMSG.GUI\GFMSG.GUI.csproj" />
+    <ProjectReference Include="..\Modules\GFMSG\GFMSG\GFMSG.csproj" />
+  </ItemGroup>
+
+</Project>
