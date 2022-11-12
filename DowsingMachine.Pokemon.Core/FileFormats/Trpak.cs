@@ -7,7 +7,7 @@ namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 [FlatBufferTable]
 public class Trpak
 {
-    [FlatBufferItem(0)] public uint Hash { get; set; }
+    [FlatBufferItem(0)] public ulong[] Hashes { get; set; }
     [FlatBufferItem(1)] public TrpakEntry[] Entries { get; set; }
 
     public byte[] this[int index] => GetData(index);
@@ -21,7 +21,7 @@ public class Trpak
     public void Open(byte[] data)
     {
         var trpak = FlatBufferConverter.DeserializeFrom<Trpak>(data);
-        Hash = trpak.Hash;
+        Hashes = trpak.Hashes;
         Entries = trpak.Entries;
     }
 

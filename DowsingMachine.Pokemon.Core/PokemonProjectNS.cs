@@ -171,38 +171,6 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
         }
     }
 
-
-    [Test]
-    public string[] TestFind()
-    {
-        var files = DirectoryUtil.GetFiles(Root + @"\romfs\", "*.gfpak");
-
-        var bf = new Utilities.BinaryFinder.BmhFinder(new byte[] {
-            0x1F, 00, 0x28, 00, 0x3C, 00, 0x70, 00
-        });
-
-        //var bf = new Utilities.BinaryFinder.BmhFinder("BNTX".Select(x => (byte)x).ToArray());
-
-        var sb = new List<string>();
-
-        foreach (var file in files)
-        {
-            using var gfpak = new GFPAK(file.Path);
-
-            foreach (var entry in gfpak.Entries)
-            {
-                var path = Path.Combine(file.RelativePath, entry.Parents[0], entry.Name);
-
-                foreach (var result in bf.Find(entry.Data))
-                {
-                    sb.Add($"{path}, 0x{result:X8}");
-                }
-            }
-        }
-
-        return sb.ToArray();
-    }
-
     protected class ItemReader : DataReader<byte[][]>
     {
         public int Offset { get; }

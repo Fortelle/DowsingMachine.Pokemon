@@ -82,7 +82,6 @@ public class PokemonProjectV : PokemonProjectDS
         {
             Formatter = new BwMsgFormatter(),
         };
-        var crclist = GetCrc();
 
         var wrappers = narcData.Select((data, i) =>
         {
