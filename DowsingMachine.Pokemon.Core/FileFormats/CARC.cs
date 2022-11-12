@@ -25,6 +25,11 @@ public class CARC : IObjectArchive<byte[]>
         Data = Decompress(ms, data.Length);
     }
 
+    public void Open(Stream stream)
+    {
+        Data = Decompress(stream, stream.Length);
+    }
+
     #region "Decompress"
     private long input_offset = 0;
     private int bit_pool = 0;

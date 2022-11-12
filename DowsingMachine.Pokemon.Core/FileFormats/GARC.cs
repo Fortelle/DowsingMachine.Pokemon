@@ -59,6 +59,14 @@ public class GARC : ICollectionArchive<byte[]>, ILargeArchive
         Load();
     }
 
+    public void Open(Stream stream)
+    {
+        Stream = stream;
+        Reader = new BinaryReader(stream);
+
+        Load();
+    }
+
     private void Load()
     {
         Header = new(Reader);

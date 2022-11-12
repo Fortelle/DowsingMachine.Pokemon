@@ -1,4 +1,5 @@
 ﻿using PBT.DowsingMachine.Data;
+using PBT.DowsingMachine.Projects;
 using System.Runtime.InteropServices;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen8;
@@ -15,8 +16,9 @@ public class Personal8
     // 0x04
     public byte Basic_spatk;
     public byte Basic_spdef;
-    public byte Type1;
-    public byte Type2;
+
+    [StringReference(@"typename")] public byte Type1;
+    [StringReference(@"typename")] public byte Type2;
 
     // 0x08
     public byte Get_rate;
@@ -31,11 +33,11 @@ public class Personal8
     [BitField(3)] public ushort Pains_yobi;
 
     // 0x0C
-    public ushort Item1;
-    public ushort Item2;
+    [StringReference(@"itemname")] public ushort Item1;
+    [StringReference(@"itemname")] public ushort Item2;
 
     // 0x10
-    public ushort Item3;
+    [StringReference(@"itemname")] public ushort Item3;
     public byte Sex;
     public byte Egg_Birth;
 
@@ -46,11 +48,11 @@ public class Personal8
     public byte Egg_Group2;
 
     // 0x18
-    public short Tokusei1;
-    public short Tokusei2;
+    [StringReference(@"tokusei")] public short Tokusei1;
+    [StringReference(@"tokusei")] public short Tokusei2;
 
     // 0x1C
-    public short Tokusei3;
+    [StringReference(@"tokusei")] public short Tokusei3;
     public short Form_Index;
 
     // 0x20

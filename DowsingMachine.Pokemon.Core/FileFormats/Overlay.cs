@@ -32,6 +32,11 @@ public class Overlay : IObjectArchive<byte[]>
         Data = DecompressOverlay(data);
     }
 
+    public void Open(Stream stream)
+    {
+        throw new NotSupportedException();
+    }
+
     private static byte[] DecompressOverlay(byte[] sourcedata)
     {
         uint DataVar1, DataVar2;

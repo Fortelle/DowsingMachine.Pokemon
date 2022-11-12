@@ -50,6 +50,13 @@ public class NSO0 : IObjectArchive<NSO0>
         Load(br);
     }
 
+    public void Open(Stream stream)
+    {
+        using var br = new BinaryReader(stream);
+
+        Load(br);
+    }
+
     private void Load(BinaryReader br)
     {
         Magic = br.ReadChars(4);

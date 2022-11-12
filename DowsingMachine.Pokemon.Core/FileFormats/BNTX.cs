@@ -43,6 +43,21 @@ public class BNTX : IDisposable
         Load(bf);
     }
 
+    public BNTX(Stream stream)
+    {
+        BntxFile bf = null;
+        try
+        {
+            bf = new BntxFile(stream);
+        }
+        catch (Exception ex)
+        {
+            return;
+        }
+        Load(bf);
+    }
+
+
     public void Dispose()
     {
         if (Textures != null)

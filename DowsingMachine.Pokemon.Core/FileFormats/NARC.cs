@@ -45,6 +45,14 @@ public class NARC : ICollectionArchive<byte[]>, ILargeArchive
         Load(Reader);
     }
 
+    public void Open(Stream stream)
+    {
+        Stream = stream;
+        Reader = new BinaryReader(stream);
+
+        Load(Reader);
+    }
+
     public void Dispose()
     {
         Reader?.Dispose();

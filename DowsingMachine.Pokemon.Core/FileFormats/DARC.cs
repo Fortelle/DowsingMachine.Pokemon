@@ -91,6 +91,14 @@ public class DARC : ICollectionArchive<byte[]>, ILargeArchive
         Load(Reader);
     }
 
+    public void Open(Stream stream)
+    {
+        Stream = stream;
+        Reader = new BinaryReader(stream);
+
+        Load(Reader);
+    }
+
     protected void Load(BinaryReader br)
     {
 

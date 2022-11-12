@@ -1,4 +1,5 @@
-﻿using PBT.DowsingMachine.Pokemon.Common;
+﻿using GFMSG;
+using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats.FlatBuffers;
 using PBT.DowsingMachine.Projects;
 using System.Text;
@@ -97,7 +98,22 @@ public class PokemonProjectSWSH : PokemonProjectNS
             );
 
         AddReference($"message", new MessageReader(@$"romfs\bin\message\", LanguageMaps));
+        AddReference($"messagereference", new DataInfo(@"romfs\bin\message\English\common\{0}.dat"));
     }
+
+    protected override MsgWrapper GetPreviewMsgWrapper(object[] args)
+    {
+        var name = (string)args[0];
+        var info = GetData<DataInfo>("messagereference");
+        var path = GetPath(info.RelatedPath.Replace("{0}", name));
+        if (!File.Exists(path)) return null;
+        var msg = new MsgDataV2(path);
+        var wrapper = new MsgWrapper();
+        wrapper.Load(msg, null);
+        return wrapper;
+    }
+
+
 
     public static LevelupMove[] ParseLearnset(BinaryReader br)
     {

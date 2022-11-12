@@ -46,6 +46,14 @@ public class GFPAK : ICollectionArchive<byte[]>, ILargeArchive
         Load(Reader);
     }
 
+    public void Open(Stream stream)
+    {
+        Stream = stream;
+        Reader = new BinaryReader(stream);
+
+        Load(Reader);
+    }
+
     public IEnumerable<Entry<byte[]>> Entries
     {
         get

@@ -53,7 +53,7 @@ public class MessageReaderSV : DataReader<MultilingualCollection>
                     wrappers.Add(wrapper);
                 }
             }
-            mc.Wrappers.Add(langname, wrappers.ToArray());
+            mc.Wrappers.Add(langcodes[0], wrappers.ToArray());
         }
 
         return mc;

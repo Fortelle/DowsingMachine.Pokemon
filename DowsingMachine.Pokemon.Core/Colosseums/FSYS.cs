@@ -41,6 +41,14 @@ public class FSYS : ICollectionArchive<byte[]>, ILargeArchive
         Load(Reader);
     }
 
+    public void Open(Stream stream)
+    {
+        Stream = stream;
+        Reader = new BinaryReaderEx(stream) { IsBigEndian = true };
+
+        Load(Reader);
+    }
+
     public void Dispose()
     {
         Stream?.Dispose();

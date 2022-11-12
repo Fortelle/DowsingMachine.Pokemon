@@ -22,6 +22,11 @@ public static class ProjectLoader
         {
             OutputPath = Path.Combine(outputFolder, @"SV"),
         };
+
+        yield return new PokemonProjectSV(GameTitle.Scarlet, "1.0.1", Path.Combine(inputFolder, "NS\\SV"), Path.Combine(inputFolder, "NS\\Scarlet1.0.1"))
+        {
+            OutputPath = Path.Combine(outputFolder, @"SV"),
+        };
     }
 
 }

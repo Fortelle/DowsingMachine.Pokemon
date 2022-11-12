@@ -6,25 +6,13 @@ using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Projects;
 using PBT.DowsingMachine.Utilities;
 using System.Diagnostics;
+using System.Text;
 
 namespace PBT.DowsingMachine.Pokemon.Core;
 
 public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPreviewString
 {
     public GameInfo Game { get; set; }
-
-    private MultilingualCollection message;
-    public MultilingualCollection Message
-    {
-        get
-        {
-            if (message == null)
-            {
-                message = GetData<MultilingualCollection>($"message");
-            }
-            return message;
-        }
-    }
 
     protected PokemonProjectNS(GameTitle title, string version, string baseFolder, string? patchFolder = null)
         : base($"{title}", version, baseFolder, patchFolder)
@@ -34,7 +22,7 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
     }
 
     [Extraction]
-    public IEnumerable<string> ExtractFiles(string output)
+    public virtual IEnumerable<string> ExtractFiles(string output)
     {
         if (true)
         {
@@ -145,28 +133,37 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
         }
     }
 
-    public string GetPreviewString(object[] args)
+    protected Dictionary<string, MsgWrapper> MsgDictionaries;
+    protected MsgFormatter MsgFormatter;
+    protected virtual MsgWrapper GetPreviewMsgWrapper(object[] args)
+    {
+        return null;
+    }
+    string IPreviewString.GetPreviewString(object[] args)
     {
         var name = (string)args[0];
-        switch (args[1])
+        var value = args[1];
+
+        MsgDictionaries ??= new();
+        MsgFormatter ??= new PokemonMsgFormatterV2();
+
+        if (!MsgDictionaries.ContainsKey(name))
         {
-            //case EnumHash eh:
-            //    {
-            //        if (eh.IsEmpty) return "";
-            //        return Message.GetString("zh-Hans", name, eh.Value);
-            //    }
-            case string s:
-                {
-                    return Message.GetString("zh-Hans", name, s);
-                }
-            case ulong l:
-                {
-                    return Message.GetString("zh-Hans", name, l);
-                }
+            MsgDictionaries.Add(name, GetPreviewMsgWrapper(args));
+        }
+
+        var mw = MsgDictionaries[name];
+        if (mw == null)
+        {
+            return "";
+        }
+
+        switch (value)
+        {
             default:
                 {
-                    var index = int.Parse(args[1].ToString());
-                    return Message.GetString("zh-Hans", name, index);
+                    var index = int.Parse(value.ToString());
+                    return MsgFormatter.Format(mw[index][0], new());
                 }
         }
     }

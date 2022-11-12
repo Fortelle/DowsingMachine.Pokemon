@@ -48,6 +48,14 @@ public class SARC : ICollectionArchive<byte[]>, ILargeArchive
         Load();
     }
 
+    public void Open(Stream stream)
+    {
+        Stream = stream;
+        Reader = new BinaryReader(stream);
+
+        Load();
+    }
+
     private void Load()
     {
         Signature = new string(Reader.ReadChars(4));
