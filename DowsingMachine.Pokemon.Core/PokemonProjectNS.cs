@@ -139,7 +139,8 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
     {
         return null;
     }
-    string IPreviewString.GetPreviewString(object[] args)
+
+    public string GetPreviewString(params object[] args)
     {
         var name = (string)args[0];
         var value = args[1];

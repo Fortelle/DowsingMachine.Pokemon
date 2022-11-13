@@ -2,9 +2,11 @@
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats.FlatBuffers;
+using PBT.DowsingMachine.Pokemon.Core.Gen8;
 using PBT.DowsingMachine.Pokemon.Games;
 using PBT.DowsingMachine.Projects;
 using System.Drawing;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -45,25 +47,48 @@ public class PokemonProjectSV : PokemonProjectNS
             Metatable<PersonalSV>.Deserialize
             );
 
+        AddReference("waza",
+            new ByteReader(@"trpak\avalondataai_common_raid01.bin.trpak\A90026235522C2F0"),
+            Metatable<WazaSV>.Deserialize
+            );
+
+        AddReference("ACD40B49C2F91CCD",
+            new ByteReader(@"trpak\avalondataai_common_raid01.bin.trpak\ACD40B49C2F91CCD"),
+            Metatable<TestSchemaUshort>.Deserialize
+            );
+
+        AddReference("6E640887C479E026",
+            new ByteReader(@"trpak\avalondataai_common_raid01.bin.trpak\6E640887C479E026"),
+            Metatable<TestSchemaUshort>.Deserialize
+            );
+
         AddReference($"message", new MessageReaderSV(@$"trpfs", LanguageMaps));
         AddReference($"messagereference", new DataInfo(@"trpak\messagedatSimp_Chinesecommon{0}.trpak"));
 
-        AddReference("test", new DummyReader(), _ =>
-        {
-            return new[]
-            {
-                new AAA(),
-                new AAA(),
-                new AAA(),
-            };
-        });
     }
 
-    public class AAA
+    [Test]
+    public string WazaFlags()
     {
-        [StringReference(@"monsname2")] public int A { get; set; }
-        [StringReference(@"monsname")] public int B { get; set; }
-        [StringReference(@"monsname")] public int C { get; set; }
+        var sb = new StringBuilder();
+        var properties = typeof(WazaSV)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(x=>x.Name.StartsWith("Flag_"))
+            .ToArray();
+        var wazadata = GetData<WazaSV[]>("waza");
+
+        foreach (var prop in properties)
+        {
+            var wazalist = wazadata
+                .Where(x => (bool)prop.GetValue(x))
+                .Select(x => GetPreviewString("wazaname", x.WazaNo))
+                .ToArray();
+            sb.AppendLine(prop.Name);
+            sb.AppendLine(string.Join(",", wazalist));
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
     }
 
     protected override MsgWrapper GetPreviewMsgWrapper(object[] args)
@@ -160,30 +185,6 @@ public class PokemonProjectSV : PokemonProjectNS
                 File.WriteAllBytes(patchFilepath, filedata);
             }
             yield return foldername;
-        }
-    }
-
-    [Test]
-    public void aaa()
-    {
-        var folder = @"E:\Pokemon\Resources\Unpacked\NS\SV\bntx";
-        var dirs = Directory.GetDirectories(folder, "*", SearchOption.TopDirectoryOnly);
-        foreach(var dir in dirs)
-        {
-            var dirs2 = Directory.GetDirectories(dir, "*", SearchOption.TopDirectoryOnly);
-            foreach(var dir2 in dirs2)
-            {
-                var files = Directory.GetFiles(dir2, "*", SearchOption.AllDirectories);
-                if(files.Length == 1)
-                {
-                    var newfile = Regex.Replace(files[0], @"\\[A-F0-9]{16}\\", "\\");
-                    if (!File.Exists(newfile))
-                    {
-                        File.Move(files[0], newfile);
-                        Directory.Delete(dir2);
-                    }
-                }
-            }
         }
     }
 
@@ -391,3 +392,5 @@ public class PokemonProjectSV : PokemonProjectNS
 
 
 }
+
+

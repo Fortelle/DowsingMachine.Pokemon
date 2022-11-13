@@ -1,5 +1,6 @@
 ﻿using FlatSharp.Attributes;
 using PBT.DowsingMachine.Projects;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen9;
@@ -189,5 +190,56 @@ public struct Byte8
     public override string ToString()
     {
         return $"{Value1},{Value2},{Value3},{Value4},{Value5},{Value6},{Value7},{Value8}";
+    }
+}
+
+[FlatBufferStruct]
+[StructLayout(LayoutKind.Explicit)]
+public struct Byte16
+{
+    [FieldOffset(0)] public byte Value1;
+    [FieldOffset(1)] public byte Value2;
+    [FieldOffset(2)] public byte Value3;
+    [FieldOffset(3)] public byte Value4;
+    [FieldOffset(4)] public byte Value5;
+    [FieldOffset(5)] public byte Value6;
+    [FieldOffset(6)] public byte Value7;
+    [FieldOffset(7)] public byte Value8;
+
+    [FieldOffset(8)] public byte Value9;
+    [FieldOffset(9)] public byte Value10;
+    [FieldOffset(10)] public byte Value11;
+    [FieldOffset(11)] public byte Value12;
+    [FieldOffset(12)] public byte Value13;
+    [FieldOffset(13)] public byte Value14;
+    [FieldOffset(14)] public byte Value15;
+    [FieldOffset(15)] public byte Value16;
+
+    public override string ToString()
+    {
+        return $"{Value1},{Value2},{Value3},{Value4},{Value5},{Value6},{Value7},{Value8},{Value9},{Value10},{Value11},{Value12},{Value13},{Value14},{Value15},{Value16}";
+    }
+}
+
+
+[FlatBufferStruct]
+[StructLayout(LayoutKind.Explicit)]
+public struct Byte12
+{
+    [FieldOffset(0)] public byte Value1;
+    [FieldOffset(1)] public byte Value2;
+    [FieldOffset(2)] public byte Value3;
+    [FieldOffset(3)] public byte Value4;
+    [FieldOffset(4)] public byte Value5;
+    [FieldOffset(5)] public byte Value6;
+    [FieldOffset(6)] public byte Value7;
+    [FieldOffset(7)] public byte Value8;
+
+    [FieldOffset(8)] public byte Value9;
+    [FieldOffset(9)] public byte Value10;
+
+    public override string ToString()
+    {
+        return $"{Value1},{Value2},{Value3},{Value4},{Value5},{Value6},{Value7},{Value8},{Value9},{Value10}";
     }
 }
