@@ -55,7 +55,7 @@ public class WazaSV
     [FlatBufferItem(41)] public bool Flag_Pressure { get; set; }
     [FlatBufferItem(42)] public bool Flag_Combi { get; set; }
     [FlatBufferItem(43)] public bool Flag_NegotoOmit { get; set; }
-    [FlatBufferItem(44)] public bool Flag_NekoNoteOmit { get; set; }
+    [FlatBufferItem(44)] public bool Flag_NekonoteOmit { get; set; }
     [FlatBufferItem(45)] public bool Flag_ManekkoOmit { get; set; }
     [FlatBufferItem(46)] public bool Flag_MonomaneFail { get; set; }
     [FlatBufferItem(47)] public bool Flag_SaihaiFail { get; set; }

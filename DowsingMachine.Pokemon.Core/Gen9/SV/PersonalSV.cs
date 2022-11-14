@@ -37,7 +37,7 @@ public class PersonalSV
     [FlatBufferItem(19)] public PersonalSVStats Pains { get; set; }
 
     [FlatBufferItem(20)] public PersonalSVStats Basic { get; set; }
-    [FlatBufferItem(21)] public ushort[] EvolutionLevels { get; set; }
+    [FlatBufferItem(21)] public PersonalSVEvolution[] EvolutionLevels { get; set; }
 
     [FlatBufferItem(22)] public ushort[] Waza_machine { get; set; }
     [FlatBufferItem(23)] public ushort[] Waza_egg { get; set; }
@@ -173,6 +173,22 @@ public struct PersonalSVSex
     }
 }
 
+[FlatBufferStruct]
+[StructLayout(LayoutKind.Explicit)]
+public struct PersonalSVEvolution
+{
+    [FieldOffset(0)] public ushort EnableLevel;
+    [FieldOffset(2)] public ushort Cond;
+    [FieldOffset(4)] public uint Value;
+    [FieldOffset(8)] public uint Value2;
+    [FieldOffset(12)] public ushort MonNo;
+    [FieldOffset(14)] public ushort FormNo;
+
+    public override string ToString()
+    {
+        return $"{EnableLevel},{Cond},{Value},{Value2},{MonNo},{FormNo}";
+    }
+}
 
 [FlatBufferStruct]
 [StructLayout(LayoutKind.Explicit)]

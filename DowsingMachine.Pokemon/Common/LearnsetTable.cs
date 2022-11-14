@@ -5,45 +5,42 @@ using System.Text.Json.Nodes;
 
 namespace PBT.DowsingMachine.Pokemon.Common;
 
-public class LearnsetTable
+public record LearnsetEntry(PokemonId Pokemon, string[] Data);
+
+public class LearnsetTable : List<LearnsetEntry>
 {
-    public record LearnsetEntry(PokemonId Pokemon, string[] Data);
-
-    public List<LearnsetEntry> Entries { get; set; }
-
     public LearnsetTable()
     {
-        Entries = new();
     }
 
     public void Add(PokemonId id)
     {
-        Entries.Add(new LearnsetEntry(id, Array.Empty<string>()));
+        this.Add(new LearnsetEntry(id, Array.Empty<string>()));
     }
 
     public void Add(PokemonId id, params int[] moves)
     {
-        var data = moves.Select(x=>x.ToString()).ToArray();
-        Entries.Add(new LearnsetEntry(id, data));
+        var data = moves.Select(x => x.ToString()).ToArray();
+        this.Add(new LearnsetEntry(id, data));
     }
 
     public void Add(PokemonId id, params string[] data)
     {
-        Entries.Add(new LearnsetEntry(id, data));
+        this.Add(new LearnsetEntry(id, data));
     }
 
     public void Append(PokemonId id, params int[] moves)
     {
-        var i = Entries.FindIndex(x => x.Pokemon == id);
+        var i = this.FindIndex(x => x.Pokemon == id);
         Debug.Assert(i >= 0);
-        var data = Entries[i].Data.Concat(moves.Select(x => x.ToString())).ToArray();
-        Entries[i] = new LearnsetEntry(id, data);
+        var data = this[i].Data.Concat(moves.Select(x => x.ToString())).ToArray();
+        this[i] = new LearnsetEntry(id, data);
     }
 
     public void Save(string path, string format = "{0:000}.{1:00}")
     {
         var sb = new StringBuilder();
-        foreach(var entry in Entries)
+        foreach(var entry in this)
         {
             sb.Append(entry.Pokemon.ToString(format));
             sb.Append('\t');
@@ -57,7 +54,7 @@ public class LearnsetTable
     public void SaveJson(string path, bool hasForm, bool hasCond)
     {
         var list = new JsonArray();
-        foreach(var (pm, data) in Entries)
+        foreach(var (pm, data) in this)
         {
             var obj = new JsonObject
             {
@@ -93,4 +90,5 @@ public class LearnsetTable
         }
         JsonUtil.Serialize(path, list);
     }
+
 }

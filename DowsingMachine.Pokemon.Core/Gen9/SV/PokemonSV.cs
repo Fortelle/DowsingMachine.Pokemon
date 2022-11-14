@@ -1,15 +1,15 @@
 ﻿using GFMSG;
+using GFMSG.Pokemon;
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats.FlatBuffers;
-using PBT.DowsingMachine.Pokemon.Core.Gen8;
 using PBT.DowsingMachine.Pokemon.Games;
 using PBT.DowsingMachine.Projects;
+using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen9;
@@ -52,7 +52,7 @@ public class PokemonProjectSV : PokemonProjectNS
             Metatable<WazaSV>.Deserialize
             );
 
-        AddReference("ACD40B49C2F91CCD",
+        AddReference("tokusei",
             new ByteReader(@"trpak\avalondataai_common_raid01.bin.trpak\ACD40B49C2F91CCD"),
             Metatable<TestSchemaUshort>.Deserialize
             );
@@ -65,8 +65,10 @@ public class PokemonProjectSV : PokemonProjectNS
         AddReference($"message", new MessageReaderSV(@$"trpfs", LanguageMaps));
         AddReference($"messagereference", new DataInfo(@"trpak\messagedatSimp_Chinesecommon{0}.trpak"));
 
-    }
 
+        AddReference("learnsets", ReadLearnsets);
+    }
+    
     [Test]
     public string WazaFlags()
     {
@@ -90,6 +92,7 @@ public class PokemonProjectSV : PokemonProjectNS
 
         return sb.ToString();
     }
+
 
     protected override MsgWrapper GetPreviewMsgWrapper(object[] args)
     {
@@ -254,25 +257,16 @@ public class PokemonProjectSV : PokemonProjectNS
     public IEnumerable<string> ExtractSarc()
     {
         var files = GetFiles(@"\trpak\", "*", PatchReadMode.OnlyPatch);
-        //bool skip = true;
-        int c = 0;
         foreach (var file in files)
         {
-            //if (file.RelativePath == "envmastermasterirradiancevolume.bntx.trpak\\21EFBE760D6D9DCB")
-            //{
-            //    continue;
-            //}
-            //if (file.RelativePath == "system_resourcescene_assetspick_iconmodelpick_icon.trmdl.trpak\\58C3C78C6A45A00A")
-            //{
-            //    skip = false;
-            //    continue;
-            //}
-            //if (file.RelativePath == "pokemondatapm0603pm0603_00_00pm0603_00_00_base.trslp.trpak\\1C4A0FC2B447C0CD")
-            //{
-            //    skip = false;
-            //    continue;
-            //}
-            //if (skip) continue;
+            if (file.RelativePath == "envmastermasterirradiancevolume.bntx.trpak\\21EFBE760D6D9DCB")
+            {
+                continue;
+            }
+            if (file.RelativePath == "system_resourcescene_assetspick_iconmodelpick_icon.trmdl.trpak\\58C3C78C6A45A00A")
+            {
+                continue;
+            }
             if (file.RelativePath.Contains(@"\messagedat"))
             {
                 continue;
@@ -317,35 +311,25 @@ public class PokemonProjectSV : PokemonProjectNS
                 bntx.Dispose();
             }
 
-            if (c++ >= 1000)
-            {
-                GC.Collect();
-                c = 0;
-            }
             yield return file.Path;
         }
     }
 
-    [Dump]
-    public IEnumerable<string> DumpLearnsets()
+    private LearnsetTableCollection ReadLearnsets()
     {
-        var outputFolder = Path.Combine(OutputPath, "learnset");
-        Directory.CreateDirectory(outputFolder);
+        var lc = new LearnsetTableCollection();
+
         var personals = GetData<PersonalSV[]>("personal");
-        var prefix = $"scarletviolet_{Version.Major}.{Version.Minor}.{Version.Build}";
-        var format = "{0:0000}.{1:00}";
 
         {
             var lt = new LearnsetTable();
-            foreach(var pm in personals)
+            foreach (var pm in personals)
             {
                 var id = new PokemonId(pm.NumForm.Number, pm.NumForm.Form);
                 var data = pm.Waza_level.Select(x => $"{x.Waza}:{x.Level}").ToArray();
                 lt.Add(id, data);
             }
-            var path = Path.Combine(outputFolder, $"{prefix}.levelup.txt");
-            lt.Save(path, format);
-            yield return path;
+            lc.Add("levelup", lt);
         }
 
         {
@@ -356,9 +340,7 @@ public class PokemonProjectSV : PokemonProjectNS
                 var data = pm.Waza_machine.Select(x => $"{x}").ToArray();
                 lt.Add(id, data);
             }
-            var path = Path.Combine(outputFolder, $"{prefix}.tm.txt");
-            lt.Save(path, format);
-            yield return path;
+            lc.Add("tm", lt);
         }
 
         {
@@ -369,9 +351,7 @@ public class PokemonProjectSV : PokemonProjectNS
                 var data = pm.Waza_egg.Select(x => $"{x}").ToArray();
                 lt.Add(id, data);
             }
-            var path = Path.Combine(outputFolder, $"{prefix}.egg.txt");
-            lt.Save(path, format);
-            yield return path;
+            lc.Add("egg", lt);
         }
 
         {
@@ -382,14 +362,21 @@ public class PokemonProjectSV : PokemonProjectNS
                 var data = pm.Waza_tutor.Select(x => $"{x}").ToArray();
                 lt.Add(id, data);
             }
-            var path = Path.Combine(outputFolder, $"{prefix}.tutor.txt");
-            lt.Save(path, format);
-            yield return path;
+            lc.Add("tutor", lt);
         }
 
-
+        return lc;
     }
 
+    [Dump]
+    public void DumpLearnsets()
+    {
+        var learnsets = GetData<LearnsetTableCollection>("learnsets");
+        var outputFolder = Path.Combine(OutputPath, "learnset");
+        var prefix = $"scarletviolet_{Version.Major}.{Version.Minor}.{Version.Build}";
+        var format = "{0:0000}.{1:00}";
+        learnsets.Output(outputFolder, format, prefix);
+    }
 
 }
 
