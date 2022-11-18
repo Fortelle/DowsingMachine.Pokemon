@@ -34,7 +34,7 @@ public class LearnsetTableCollection
             
             foreach(var newEntry in newTable)
             {
-                var oldEntry = oldTable.FirstOrDefault(x => x.Pokemon == newEntry.Pokemon);\
+                var oldEntry = oldTable.FirstOrDefault(x => x.Pokemon == newEntry.Pokemon);
                 if (oldEntry is null)
                 {
                     continue;
