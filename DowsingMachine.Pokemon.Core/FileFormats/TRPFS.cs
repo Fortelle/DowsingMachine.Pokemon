@@ -2,6 +2,7 @@
 using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats.FlatBuffers;
 using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Utilities.Codecs;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
@@ -13,8 +14,8 @@ public class TRPFS : ICollectionArchive<byte[]>, ILargeArchive
     public TrpfsInfo Info { get; set; }
 
     public byte[] this[int index] => GetData(index);
-    public byte[] this[ulong hash] => GetData(Array.IndexOf(Info.Hashes, hash));
-    public byte[] this[string name] => throw new NotSupportedException();
+    public byte[] this[ulong hash] => GetData(Array.BinarySearch(Info.Hashes, hash));
+    public byte[] this[string name] => GetData(Array.BinarySearch(Info.Hashes, FnvHash.Fnv1a_64(name)));
 
     private Stream Stream { get; set; }
     private BinaryReader Reader { get; set; }

@@ -1,9 +1,11 @@
 ﻿using PBT.DowsingMachine.Data;
+using PBT.DowsingMachine.Projects;
 using System.Runtime.InteropServices;
 
 namespace PBT.DowsingMachine.Pokemon.Games;
 
 [StructLayout(LayoutKind.Sequential)]
+[StringReference(@"message\55")]
 public class Personal7
 {
     public byte Basic_hp;
@@ -13,8 +15,8 @@ public class Personal7
 
     public byte Basic_spatk;
     public byte Basic_spdef;
-    public byte Type1;
-    public byte Type2;
+    [StringReference(@"message\107")] public byte Type1;
+    [StringReference(@"message\107")] public byte Type2;
 
     public byte Get_rate;
     public byte Rank;
@@ -27,10 +29,10 @@ public class Personal7
     [BitField(1)] public ushort No_jump;
     [BitField(3)] public ushort Pains_yobi;
 
-    public ushort Item1;
-    public ushort Item2;
+    [StringReference(@"message\36")] public ushort Item1;
+    [StringReference(@"message\36")] public ushort Item2;
 
-    public ushort Item3;
+    [StringReference(@"message\36")] public ushort Item3;
     public byte Sex;
     public byte Egg_Birth;
 
@@ -39,9 +41,9 @@ public class Personal7
     public byte Egg_Group1;
     public byte Egg_Group2;
 
-    public byte Tokusei1;
-    public byte Tokusei2;
-    public byte Tokusei3;
+    [StringReference(@"message\96")] public byte Tokusei1;
+    [StringReference(@"message\96")] public byte Tokusei2;
+    [StringReference(@"message\96")] public byte Tokusei3;
     public byte Sos_rate;
 
     public ushort Form_index;
@@ -67,10 +69,10 @@ public class Personal7
     public uint Waza_oshie_momiji3; // _padding_4 in sm
     public uint _padding_5;
 
-    public ushort Zenryoku_waza_item;
-    public ushort Zenryoku_waza_before;
+    [StringReference(@"message\36")] public ushort Zenryoku_waza_item;
+    [StringReference(@"message\113")] public ushort Zenryoku_waza_before;
 
-    public ushort Zenryoku_waza_after;
+    [StringReference(@"message\113")] public ushort Zenryoku_waza_after;
     public byte Region;
     public byte _padding_6;
 }

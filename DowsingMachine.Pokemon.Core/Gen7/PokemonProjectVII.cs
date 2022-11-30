@@ -1,6 +1,7 @@
 ﻿using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core;
+using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Pokemon.Core.Gen7;
 using PBT.DowsingMachine.Projects;
 using System.Diagnostics;
@@ -52,6 +53,12 @@ public partial class PokemonProjectVII : PokemonProject3DS
             x => ParseEnumerable(x, ReadEggMoves)
             );
 
+        AddReference("WazaData",
+            new GarcReader(@"romfs\a\0\1\1"),
+            garc => new BinData(garc[0]).Data,
+            MarshalArray<WazaData7>
+            );
+
         AddReference("item",
             new GarcReader(@"romfs\a\0\1\9"),
             MarshalArray<Item7>
@@ -86,6 +93,10 @@ public partial class PokemonProjectVII : PokemonProject3DS
         }
 
         AddReference($"message", new MessageReader(@$"romfs\bin\message\", LanguageMaps));
+        AddReference($"messagereference", new MessageReader(@$"romfs\bin\message\", new()
+        {
+            ["zh-Hans"] = new[] { @"romfs\a\0\3\8" },
+        }));
     }
 
     public static TamagoWazaData ReadEggMoves(BinaryReader br)
@@ -156,7 +167,6 @@ public partial class PokemonProjectVII : PokemonProject3DS
         }
         return list.ToArray();
     }
-
 
     [Test]
     public PokemonId[] GetPokemonIds()

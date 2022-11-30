@@ -1,5 +1,4 @@
 ﻿using GFMSG;
-using GFMSG.GUI;
 using GFMSG.Pokemon;
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats;
@@ -7,7 +6,7 @@ using PBT.DowsingMachine.Projects;
 
 namespace PBT.DowsingMachine.Pokemon.Core;
 
-public abstract class PokemonProject3DS : DataProject, IPokemonProject
+public abstract class PokemonProject3DS : DataProject, IPokemonProject, IPreviewString
 {
     public GameInfo Game { get; set; }
 
@@ -32,15 +31,12 @@ public abstract class PokemonProject3DS : DataProject, IPokemonProject
         }
     }
 
-
-    [Test]
-    public virtual void TestMessage()
+    public string GetPreviewString(params object[] args)
     {
-        var msg = GetData<MultilingualCollection>($"message");
-        msg.Formatter = new DpMsgFormatter();
-        var frm = new ExplorerForm();
-        frm.LoadMessage(msg);
-        frm.Show();
+        var name = (string)args[0];
+        var value = int.Parse(args[1].ToString());
+        var mc = GetData<MultilingualCollection>("messagereference", CacheMode.CacheFinal);
+        return mc.GetString("zh-hans", name, value);
     }
 
     protected class MessageReader : DataReader<MultilingualCollection>
@@ -87,32 +83,4 @@ public abstract class PokemonProject3DS : DataProject, IPokemonProject
         }
     }
 
-    //[Dump]
-    //public IEnumerable<string> DumpFormattedTexts()
-    //{
-    //    var formatter = new TextFormatter();
-    //    formatter.SymbolReplacement.Add(0xE300, "₽"); // PokeDoller mark
-
-    //    formatter.NewLineMarker = new[] {
-    //        @"[0xFFFE]",
-    //        @"{0xBE00}",
-    //        @"{0xBE01}",
-    //    };
-
-    //    foreach (var group in new string[] { "common", "script" })
-    //    {
-    //        var outputFolder = Path.Combine(OutputPath, "message_formatted", "jp", group);
-    //        Directory.CreateDirectory(outputFolder);
-
-    //        var data = GetData<PokemonText[]>(group);
-    //        for (var i = 0; i < data.Length; i++)
-    //        {
-    //            var outputFile = Path.Combine(outputFolder, $"{i}.json");
-    //            var options = new FormatOptions() { Format = FormatType.Plain };
-    //            var lines = data[i].Entries.Select(x => formatter.Format(x, options));
-    //            //Serializer.WriteLF(outputFile, lines);
-    //            yield return outputFile;
-    //        }
-    //    }
-    //}
 }

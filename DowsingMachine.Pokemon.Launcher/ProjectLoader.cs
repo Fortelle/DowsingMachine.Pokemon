@@ -1,6 +1,7 @@
 ﻿using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.Gen8;
 using PBT.DowsingMachine.Pokemon.Core.Gen9;
+using PBT.DowsingMachine.Pokemon.Games;
 using PBT.DowsingMachine.Projects;
 
 namespace DowsingMachine.Pokemon.Launcher;
@@ -12,6 +13,11 @@ public static class ProjectLoader
         // ours
         var inputFolder = @"E:\Pokemon\Resources\Unpacked\"; 
         var outputFolder = @"E:\Pokemon\Output\";
+
+        yield return new PokemonProjectVII(GameTitle.Sun, Path.Combine(inputFolder, "3DS\\s"))
+        {
+            OutputPath = Path.Combine(outputFolder, @"SM"),
+        };
 
         yield return new PokemonProjectSWSH(GameTitle.Sword, "1.3.2", Path.Combine(inputFolder, "NS\\Sword1.0"), Path.Combine(inputFolder, "NS\\Sword1.3.2"))
         {

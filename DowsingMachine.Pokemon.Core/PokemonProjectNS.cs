@@ -19,6 +19,27 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
     {
         ((IPokemonProject)this).Set(title);
 
+        AddReference("main", new ArchiveReader<NSO0>(@"exefs\main"));
+        AddReference("rtld", new ArchiveReader<NSO0>(@"exefs\rtld"));
+        AddReference("sdk", new ArchiveReader<NSO0>(@"exefs\sdk"));
+        AddReference("subsdk0", new ArchiveReader<NSO0>(@"exefs\subsdk0"));
+    }
+
+    [Extraction]
+    public IEnumerable<string> ExtractNso()
+    {
+        var outputFolder = Path.Combine(OutputPath, "nso");
+        Directory.CreateDirectory(outputFolder);
+        var names = new[] { "main", "rtld", "sdk", "subsdk0" };
+
+        foreach(var name in names)
+        {
+            var nso = GetData<NSO0>(name);
+            File.WriteAllBytes(Path.Combine(outputFolder, $"{name}.text"), nso.Text);
+            File.WriteAllBytes(Path.Combine(outputFolder, $"{name}.rodata"), nso.Rodata);
+            File.WriteAllBytes(Path.Combine(outputFolder, $"{name}.data"), nso.Data);
+            yield return name;
+        }
     }
 
     [Extraction]

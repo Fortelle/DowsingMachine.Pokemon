@@ -11,6 +11,7 @@ public class Trpak
     [FlatBufferItem(1)] public TrpakEntry[] Entries { get; set; }
 
     public byte[] this[int index] => GetData(index);
+    public byte[] this[ulong hash] => GetData(Array.IndexOf(Hashes, hash));
 
     public void Open(string path)
     {

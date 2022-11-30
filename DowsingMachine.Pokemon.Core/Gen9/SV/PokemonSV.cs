@@ -33,27 +33,28 @@ public class PokemonProjectSV : PokemonProjectNS
     public PokemonProjectSV(GameTitle title, string version, string baseFolder, string? patchFolder = null)
         : base(title, version, baseFolder, patchFolder)
     {
-        AddReference("trpfd",
+
+        AddReference("data.trpfd",
             new ByteReader(@"romfs\arc\data.trpfd"),
             FlatBufferConverter.DeserializeFrom<TRPFD>
             );
 
-        AddReference("trpfs",
+        AddReference("data.trpfs",
             new ArchiveReader<TRPFS>(@"romfs\arc\data.trpfs")
             );
 
         AddReference("personal",
-            new ByteReader(@"trpak\avalondataai_common_raid01.bin.trpak\68AB38E2CF1281ED"),
+            new TrpfsReader(@"avalon/data/personal_array.bin"),
             Metatable<PersonalSV>.Deserialize
             );
 
         AddReference("waza",
-            new ByteReader(@"trpak\avalondataai_common_raid01.bin.trpak\A90026235522C2F0"),
+            new TrpfsReader(@"avalon/data/waza_array.bin"),
             Metatable<WazaSV>.Deserialize
             );
 
         AddReference("tokusei",
-            new ByteReader(@"trpak\avalondataai_common_raid01.bin.trpak\ACD40B49C2F91CCD"),
+            new TrpfsReader(@"avalon/data/tokusei_array.bin"),
             Metatable<TestSchemaUshort>.Deserialize
             );
 
@@ -65,10 +66,41 @@ public class PokemonProjectSV : PokemonProjectNS
         AddReference($"message", new MessageReaderSV(@$"trpfs", LanguageMaps));
         AddReference($"messagereference", new DataInfo(@"trpak\messagedatSimp_Chinesecommon{0}.trpak"));
 
-
         AddReference("learnsets", ReadLearnsets);
     }
-    
+
+    public class TrpfsReader : DataReader<Trpak, byte[]>
+    {
+        private ulong Hash;
+
+        public TrpfsReader(string path) : base(path)
+        {
+
+        }
+
+        protected override Trpak Open()
+        {
+            var trpfd = Project.GetData<TRPFD>("data.trpfd", CacheMode.CacheFinal);
+            var trpfs = Project.GetData<TRPFS>("data.trpfs", CacheMode.CacheFinal);
+
+            Hash = FnvHash.Fnv1a_64(RelatedPath);
+            var unpackedIndex = Array.BinarySearch(trpfd.UnpackedFileHashes, Hash);
+            var packIndex = (int)trpfd.UnpackedFileData[unpackedIndex].Index;
+            var packFilename = trpfd.PackFilenames[packIndex];
+
+            var packData = trpfs[packFilename];
+            var trpak = new Trpak();
+            trpak.Open(packData);
+
+            return trpak;
+        }
+
+        protected override byte[] Read(Trpak trpak)
+        {
+            return trpak[Hash];
+        }
+    }
+
     [Test]
     public string WazaFlags()
     {
@@ -128,16 +160,16 @@ public class PokemonProjectSV : PokemonProjectNS
     [Extraction]
     public IEnumerable<string> ExtractTrpfs()
     {
-        var trpfd = GetData<TRPFD>($"trpfd");
-        var trpfs = GetData<TRPFS>($"trpfs");
+        var trpfd = GetData<TRPFD>($"data.trpfd");
+        var trpfs = GetData<TRPFS>($"data.trpfs");
 
         var outputFolder = Path.Combine(PatchFolder ?? Root, "trpfs");
 
-        for (var i = 0; i < trpfd.Filenames.Length; i++)
+        for (var i = 0; i < trpfd.PackFilenames.Length; i++)
         {
-            var hash = Utilities.Codecs.FnvHash.Fnv1a_64(trpfd.Filenames[i]);
+            var hash = Utilities.Codecs.FnvHash.Fnv1a_64(trpfd.PackFilenames[i]);
             var data = trpfs[hash];
-            var filename = trpfd.Filenames[i].Replace("arc/", "");
+            var filename = trpfd.PackFilenames[i].Replace("arc/", "");
             var filepath = Path.Combine(outputFolder, filename);
             File.WriteAllBytes(filepath, data);
             yield return filepath;
@@ -150,18 +182,18 @@ public class PokemonProjectSV : PokemonProjectNS
         var originFolder = Path.Combine(Root, "trpak");
         var patchFolder = Path.Combine(PatchFolder ?? Root, "trpak"); 
 
-        var trpfd = GetData<TRPFD>($"trpfd");
-        var trpfs = GetData<TRPFS>($"trpfs");
+        var trpfd = GetData<TRPFD>($"data.trpfd");
+        var trpfs = GetData<TRPFS>($"data.trpfs");
 
         var md5Algo = MD5.Create();
         var hasPatch = originFolder != patchFolder;
 
-        for (var i = 0; i < trpfd.Filenames.Length; i++)
+        for (var i = 0; i < trpfd.PackFilenames.Length; i++)
         {
-            var hash = Utilities.Codecs.FnvHash.Fnv1a_64(trpfd.Filenames[i]);
+            var hash = Utilities.Codecs.FnvHash.Fnv1a_64(trpfd.PackFilenames[i]);
             var data = trpfs[hash];
 
-            var foldername = trpfd.Filenames[i].Replace("arc/", "");
+            var foldername = trpfd.PackFilenames[i].Replace("arc/", "");
             var folderexists = Directory.Exists(Path.Combine(patchFolder, foldername));
 
             var trpak = new Trpak();
@@ -212,61 +244,12 @@ public class PokemonProjectSV : PokemonProjectNS
 
     }
 
-    [Test]
-    public string[] Find()
-    {
-        var files = GetFiles(@"\trpak\", "*", PatchReadMode.OnlyPatch);
-        var bf = new Utilities.BinaryFinder.BmhFinder(new byte[] {
-            155, 110, 125, 55, 80, 45
-        });
-        var sb = new List<string>();
-
-        foreach (var file in files)
-        {
-            if (file.RelativePath.Contains(@"\messagedat"))
-            {
-                continue;
-            }
-
-            using var ms = File.OpenRead(file.Path);
-            var signature = new[]
-            {
-                ms.ReadByte(),
-                ms.ReadByte(),
-                ms.ReadByte(),
-                ms.ReadByte(),
-            };
-            if (signature[0] > 0 && (signature[0] & 0xb11) == 0 && signature[1] == 0 && signature[2] == 0 && signature[3] == 0)
-            {
-                var buffer = new byte[ms.Length];
-                ms.Read(buffer, 0, (int)ms.Length);
-
-                foreach (var result in bf.Find(buffer))
-                {
-                    sb.Add($"{file.Path}, 0x{result:X8}");
-                }
-
-            }
-        }
-
-        return sb.ToArray();
-    }
-
-
     [Extraction]
     public IEnumerable<string> ExtractSarc()
     {
         var files = GetFiles(@"\trpak\", "*", PatchReadMode.OnlyPatch);
         foreach (var file in files)
         {
-            if (file.RelativePath == "envmastermasterirradiancevolume.bntx.trpak\\21EFBE760D6D9DCB")
-            {
-                continue;
-            }
-            if (file.RelativePath == "system_resourcescene_assetspick_iconmodelpick_icon.trmdl.trpak\\58C3C78C6A45A00A")
-            {
-                continue;
-            }
             if (file.RelativePath.Contains(@"\messagedat"))
             {
                 continue;

@@ -93,8 +93,7 @@ public class PokemonProjectSWSH : PokemonProjectNS
             );
 
         AddReference("Waza",
-            new MultiFileReader<byte[]>(@"romfs\bin\pml\waza\", "waza*.wazabin"),
-            data => ParseEnumerable(data, FlatBufferConverter.DeserializeFrom<Waza8>)
+            new MultiFileReader<byte[]>(@"romfs\bin\pml\waza\", "waza*.wazabin")
             );
 
         AddReference($"message", new MessageReader(@$"romfs\bin\message\", LanguageMaps));
