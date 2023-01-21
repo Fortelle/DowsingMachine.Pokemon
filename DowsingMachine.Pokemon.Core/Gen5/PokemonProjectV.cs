@@ -1,20 +1,23 @@
 ﻿using GFMSG;
 using GFMSG.Pokemon;
-using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Common;
-using PBT.DowsingMachine.Pokemon.Core;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Utilities;
 
-namespace PBT.DowsingMachine.Pokemon.Games;
+namespace PBT.DowsingMachine.Pokemon.Core.Gen5;
 
 public class PokemonProjectV : PokemonProjectDS
 {
     public static int DexPokemonCount = 649;
 
-    public PokemonProjectV(GameTitle title, string baseFolder, Dictionary<string, string[]> langs) : base(title, baseFolder, langs)
+    public PokemonProjectV() : base()
     {
-        ((IPokemonProject)this).Set(title);
+    }
+
+    public override void Configure()
+    {
+        base.Configure();
 
         AddReference("PersonalTable",
             new NarcReader(@"root\a\0\1\6"),
@@ -44,7 +47,7 @@ public class PokemonProjectV : PokemonProjectDS
             ReadMessage
             );
 
-        switch (title)
+        switch (Title)
         {
             case GameTitle.Black:
             case GameTitle.White:
@@ -86,11 +89,11 @@ public class PokemonProjectV : PokemonProjectDS
         var wrappers = narcData.Select((data, i) =>
         {
             var msg = new MsgDataV2(data);
-            var mw = new MsgWrapper(msg, i.ToString(), FileVersion.GenV, LanguageCodes);
+            var mw = new MsgWrapper(msg, i.ToString(), FileVersion.GenV, new[] { LanguageCode });
             return mw;
         }).ToArray();
 
-        mc.Wrappers.Add(Variation, wrappers);
+        mc.Wrappers.Add(LanguageCode, wrappers);
         return mc;
     }
 
@@ -162,12 +165,12 @@ public class PokemonProjectV : PokemonProjectDS
     {
         var personals = GetData<Personal5[]>("PersonalTable");
         var ids = Enumerable.Repeat(PokemonId.Empty, personals.Length).ToArray();
-        for(var i = 0; i <= DexPokemonCount; i++)
+        for (var i = 0; i <= DexPokemonCount; i++)
         {
             ids[i] = new PokemonId(i, 0);
             if (personals[i].Form_stats_start > 0)
             {
-                for(var j = 1; j < personals[i].Form_max; j++)
+                for (var j = 1; j < personals[i].Form_max; j++)
                 {
                     if (ids[personals[i].Form_stats_start + j - 1] != PokemonId.Empty) throw new Exception();
                     ids[personals[i].Form_stats_start + j - 1] = new PokemonId(i, j);
@@ -180,7 +183,7 @@ public class PokemonProjectV : PokemonProjectDS
     [Test]
     public bool[][] GetPokemonTm()
     {
-        var tm = GetData<Personal5[]>("PersonalTable").Select(x=>PokemonUtils.ToBooleans(x.Machine1, x.Machine2, x.Machine3, x.Machine4));
+        var tm = GetData<Personal5[]>("PersonalTable").Select(x => PokemonUtils.ToBooleans(x.Machine1, x.Machine2, x.Machine3, x.Machine4));
         return tm.ToArray();
     }
 
@@ -188,7 +191,7 @@ public class PokemonProjectV : PokemonProjectDS
     public string ExtractPersonal()
     {
         var personal = GetData<Personal5[]>("PersonalTable");
-        var path = Path.Combine(OutputPath, $"personal.json");
+        var path = Path.Combine(OutputFolder, $"personal.json");
         JsonUtil.Serialize(path, personal);
         return path;
     }
@@ -196,9 +199,10 @@ public class PokemonProjectV : PokemonProjectDS
     [Extraction]
     public IEnumerable<string> ExtractLearnset()
     {
-        Directory.CreateDirectory(OutputPath);
+        Directory.CreateDirectory(OutputFolder);
 
-        var suffix = Game.Title switch {
+        var suffix = Game.Title switch
+        {
             GameTitle.Black or GameTitle.White => "blackwhite",
             GameTitle.Black2 or GameTitle.White2 => "black2white2",
         };
@@ -214,7 +218,7 @@ public class PokemonProjectV : PokemonProjectDS
                 var data = moves[i].Select(x => $"{x.Move}:{x.Level}");
                 lt.Add(dexNumbers[i], data.ToArray());
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.levelup.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -227,17 +231,18 @@ public class PokemonProjectV : PokemonProjectDS
             for (var i = 0; i < personals.Length; i++)
             {
                 var tm = PokemonUtils.ToBooleans(personals[i].Machine1, personals[i].Machine2, personals[i].Machine3, personals[i].Machine4);
-                var data = PokemonUtils.MatchFlags(tmlist2, tm, (x, j) => j switch {
+                var data = PokemonUtils.MatchFlags(tmlist2, tm, (x, j) => j switch
+                {
                     < 95 => $"{x}:TM{j + 1:00}",
                     _ => $"{x}:HM{j - 94:00}",
                 });
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tm.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tmlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tmlist.json");
             JsonUtil.Serialize(path2, tmlist);
             yield return path2;
         }
@@ -260,16 +265,17 @@ public class PokemonProjectV : PokemonProjectDS
                 var data = PokemonUtils.MatchFlags(tutorlist, tm);
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor_ult.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor_ult.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tutorultlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tutorultlist.json");
             JsonUtil.Serialize(path2, tutorlist);
             yield return path2;
         }
 
-        if(Game.Title is GameTitle.Black2 or GameTitle.White2){
+        if (Game.Title is GameTitle.Black2 or GameTitle.White2)
+        {
             var lt = new LearnsetTable();
             var secBegin = new int[] { 13, 43, 0, 28 };
             var tutorlist = GetData<B2W2TutorMove[]>("TutorMoveData").Select(x => x.Index).ToArray();
@@ -277,7 +283,8 @@ public class PokemonProjectV : PokemonProjectDS
             for (var i = 0; i < personals.Length; i++)
             {
                 var tutorArray = new[] { personals[i].Tutor1, personals[i].Tutor2, personals[i].Tutor3, personals[i].Tutor4 };
-                var data = tutorArray.SelectMany((x, j) => {
+                var data = tutorArray.SelectMany((x, j) =>
+                {
                     var flags = PokemonUtils.ToBooleans(x);
                     var tutorlist2 = tutorlist[Range.StartAt(secBegin[j])];
                     var d = PokemonUtils.MatchFlags(tutorlist2, flags); //, (y, k) => $"{y}:{j}"
@@ -286,11 +293,11 @@ public class PokemonProjectV : PokemonProjectDS
 
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tutorultlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tutorultlist.json");
             JsonUtil.Serialize(path2, tutorlist);
             yield return path2;
         }
@@ -299,16 +306,16 @@ public class PokemonProjectV : PokemonProjectDS
             var lt = new LearnsetTable();
             var eggs = GetData<int[][]>("EggMoves");
 
-            for (var i = 0; i < eggs.Length;i++)
+            for (var i = 0; i < eggs.Length; i++)
             {
                 lt.Add(dexNumbers[i], eggs[i]);
             }
 
-            var path = Path.Combine(OutputPath, $"{suffix}.egg.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tamagowaza.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tamagowaza.json");
             JsonUtil.Serialize(path2, eggs);
             yield return path2;
         }
@@ -324,13 +331,13 @@ public class PokemonProjectV : PokemonProjectDS
             lt.Add(new PokemonId(647, 0), 548);
             lt.Add(new PokemonId(648, 0), 547);
             lt.Add(new PokemonId(648, 1), 547); // ???
-            if(Game.Title is GameTitle.Black2 or GameTitle.White2)
+            if (Game.Title is GameTitle.Black2 or GameTitle.White2)
             {
                 lt.Add(new PokemonId(646, 0), 549, 184);
                 lt.Add(new PokemonId(646, 1), 554, 558);
                 lt.Add(new PokemonId(646, 2), 553, 559);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.special.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.special.txt");
             lt.Save(path, format);
             yield return path;
         }

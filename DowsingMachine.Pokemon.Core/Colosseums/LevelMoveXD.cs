@@ -1,6 +1,6 @@
 ﻿using PBT.DowsingMachine.Pokemon.Common;
 
-namespace PBT.DowsingMachine.Pokemon.Core.Projects.Colosseums;
+namespace PBT.DowsingMachine.Pokemon.Core.Colosseums;
 
 public struct LevelMoveXD
 {

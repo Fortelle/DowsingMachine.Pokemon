@@ -6,29 +6,35 @@ using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Projects;
 using PBT.DowsingMachine.Utilities;
 using System.Diagnostics;
-using System.Text;
 
 namespace PBT.DowsingMachine.Pokemon.Core;
 
 public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPreviewString
 {
+    [Option]
+    public GameTitle Title { get; set; }
+
     public GameInfo Game { get; set; }
 
-    protected PokemonProjectNS(GameTitle title, string version, string baseFolder, string? patchFolder = null)
-        : base($"{title}", version, baseFolder, patchFolder)
+    protected PokemonProjectNS() : base()
     {
-        ((IPokemonProject)this).Set(title);
-
         AddReference("main", new ArchiveReader<NSO0>(@"exefs\main"));
         AddReference("rtld", new ArchiveReader<NSO0>(@"exefs\rtld"));
         AddReference("sdk", new ArchiveReader<NSO0>(@"exefs\sdk"));
         AddReference("subsdk0", new ArchiveReader<NSO0>(@"exefs\subsdk0"));
     }
 
+    public override void Configure()
+    {
+        base.Configure();
+
+        ((IPokemonProject)this).Set(Title);
+    }
+
     [Extraction]
     public IEnumerable<string> ExtractNso()
     {
-        var outputFolder = Path.Combine(OutputPath, "nso");
+        var outputFolder = Path.Combine(OutputFolder, "nso");
         Directory.CreateDirectory(outputFolder);
         var names = new[] { "main", "rtld", "sdk", "subsdk0" };
 
@@ -47,7 +53,7 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
     {
         if (true)
         {
-            var files = DirectoryUtil.GetFiles(Root, "*.gfpak"); //  + @"\romfs\bin\archive\chara\data\tr"
+            var files = DirectoryUtil.GetFiles(OriginalFolder, "*.gfpak"); //  + @"\romfs\bin\archive\chara\data\tr"
             foreach (var file in files)
             {
                 using var gfpak = new GFPAK(file.Path);
@@ -94,7 +100,7 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
 
         if (false)
         {
-            var files = DirectoryUtil.GetFiles(Root, "*.arc");
+            var files = DirectoryUtil.GetFiles(OriginalFolder, "*.arc");
             foreach (var arcPath in files)
             {
                 //var relpath = file.Replace(Root, "");
@@ -139,7 +145,7 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
 
         if (false)
         {
-            var files = DirectoryUtil.GetFiles(Root, "*.bntx");
+            var files = DirectoryUtil.GetFiles(OriginalFolder, "*.bntx");
             foreach (var bntxFileInfo in files)
             {
                 using var bntx = new BNTX(bntxFileInfo.Path);
@@ -203,7 +209,7 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
 
         protected override byte[][] Open()
         {
-            var path = Project.GetPath(RelatedPath);
+            var path = Project.As<ExtendableProject>().GetPath(RelatedPath);
             using var fs = File.OpenRead(path);
             using var br = new BinaryReader(fs);
             var num1 = br.ReadUInt16();
@@ -234,7 +240,7 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
 
         protected override MultilingualCollection Open()
         {
-            var path = Project.GetPath(RelatedPath);
+            var path = Project.As<ExtendableProject>().GetPath(RelatedPath);
             var mc = new MultilingualCollection
             {
                 Formatter = Project switch

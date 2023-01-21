@@ -16,10 +16,8 @@ public class PokemonDreamRadar : PokemonProjectDS
         ["ko"] = "Korean",
     };
 
-    public PokemonDreamRadar(GameTitle title, string baseFolder, string lang) : base(title, baseFolder, lang)
+    public PokemonDreamRadar() : base()
     {
-        ((IPokemonProject)this).Set(title);
-
         /*
         foreach (var (lang, name) in LanguageMap)
         {

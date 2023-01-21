@@ -22,8 +22,7 @@ public class PokemonProjectBDSP : PokemonProjectNS
         ["zh-Hant"] = "tr/trad_chinese",
     };
 
-    public PokemonProjectBDSP(GameTitle title, string version, string baseFolder, string patchFolder = "")
-        : base(title, version, baseFolder, patchFolder)
+    public PokemonProjectBDSP() : base()
     {
         AddReference("PersonalTable",
             new JsonReader(@"assets\pml\data\PersonalTable.json", "Personal")
@@ -74,7 +73,7 @@ public class PokemonProjectBDSP : PokemonProjectNS
     public IEnumerable<string> DumpLearnsets()
     {
         var pokemonIndexes = GetIndexes();
-        var path = OutputPath + "/" + "Learnsets/";
+        var path = OutputFolder + "/" + "Learnsets/";
         Directory.CreateDirectory(path);
 
         var personalTable = GetData<JsonArray>("PersonalTable");

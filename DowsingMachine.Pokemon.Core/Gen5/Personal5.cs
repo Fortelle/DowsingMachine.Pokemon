@@ -1,7 +1,7 @@
 ﻿using PBT.DowsingMachine.Data;
 using System.Runtime.InteropServices;
 
-namespace PBT.DowsingMachine.Pokemon.Games;
+namespace PBT.DowsingMachine.Pokemon.Core.Gen5;
 
 [StructLayout(LayoutKind.Sequential)]
 public struct Personal5

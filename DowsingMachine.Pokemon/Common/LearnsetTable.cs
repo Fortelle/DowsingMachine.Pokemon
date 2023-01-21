@@ -1,4 +1,4 @@
-﻿using PBT.DowsingMachine.Data;
+﻿using PBT.DowsingMachine.Utilities;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;

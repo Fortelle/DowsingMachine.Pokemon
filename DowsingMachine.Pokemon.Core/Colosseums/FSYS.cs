@@ -1,9 +1,8 @@
 ﻿using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Projects;
-using System.Collections;
 using System.Diagnostics;
 
-namespace PBT.DowsingMachine.Pokemon.Core.Projects.Colosseums;
+namespace PBT.DowsingMachine.Pokemon.Core.Colosseums;
 
 public class FSYS : ICollectionArchive<byte[]>, ILargeArchive
 {

@@ -1,9 +1,10 @@
-﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Pokemon.Common;
+﻿using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core;
+using PBT.DowsingMachine.Pokemon.Core.Gen5;
 using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Utilities;
 
-namespace PBT.DowsingMachine.Pokemon.Games;
+namespace PBT.DowsingMachine.Pokemon.Core.Gen6;
 
 public class PokemonProjectVI : PokemonProject3DS
 {
@@ -21,9 +22,15 @@ public class PokemonProjectVI : PokemonProject3DS
         ["ko"] = new[] { @"romfs\a\0\7\8", @"romfs\a\0\8\6" },
     };
 
-    public PokemonProjectVI(GameTitle title, string baseFolder) : base(title, baseFolder)
+    public PokemonProjectVI() : base()
     {
-        switch (title)
+    }
+
+    public override void Configure()
+    {
+        base.Configure();
+
+        switch (Title)
         {
             case GameTitle.X:
             case GameTitle.Y:
@@ -164,7 +171,7 @@ public class PokemonProjectVI : PokemonProject3DS
     [Dump]
     public IEnumerable<string> DumpLearnset()
     {
-        Directory.CreateDirectory(OutputPath);
+        Directory.CreateDirectory(OutputFolder);
 
         var suffix = Game.Title switch
         {
@@ -183,7 +190,7 @@ public class PokemonProjectVI : PokemonProject3DS
                 var data = moves[i].Select(x => $"{x.Move}:{x.Level}");
                 lt.Add(dexNumbers[i], data.ToArray());
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.levelup.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -205,11 +212,11 @@ public class PokemonProjectVI : PokemonProject3DS
                 });
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tm.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tmlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tmlist.json");
             JsonUtil.Serialize(path2, tmlist);
             yield return path2;
         }
@@ -233,11 +240,11 @@ public class PokemonProjectVI : PokemonProject3DS
                 var data = PokemonUtils.MatchFlags(tutorlist, tm);
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor_ult.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor_ult.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tutorultlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tutorultlist.json");
             JsonUtil.Serialize(path2, tutorlist);
             yield return path2;
         }
@@ -269,11 +276,11 @@ public class PokemonProjectVI : PokemonProject3DS
 
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tutorultlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tutorultlist.json");
             JsonUtil.Serialize(path2, tutorlist);
             yield return path2;
         }
@@ -287,11 +294,11 @@ public class PokemonProjectVI : PokemonProject3DS
                 lt.Add(dexNumbers[i], eggs[i]);
             }
 
-            var path = Path.Combine(OutputPath, $"{suffix}.egg.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tamagowaza.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tamagowaza.json");
             JsonUtil.Serialize(path2, eggs);
             yield return path2;
         }
@@ -318,7 +325,7 @@ public class PokemonProjectVI : PokemonProject3DS
                     lt.Add(new PokemonId(25, i), pikachu_form_moves[i]);
                 }
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.special.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.special.txt");
             lt.Save(path, format);
             yield return path;
         }

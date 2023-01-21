@@ -6,6 +6,6 @@ public interface IPokemonProject
 
     public void Set(GameTitle title)
     {
-        Game = GameInfo.GameList.First(x => x.Title == title);
+        Game = GameInfo.GameList.FirstOrDefault(x => x.Title == title);
     }
 }

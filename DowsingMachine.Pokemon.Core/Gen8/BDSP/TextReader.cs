@@ -33,7 +33,7 @@ public class TextReader : DataReader<IEnumerable<Tuple<string, TextEntry[]>>>
 
     protected override IEnumerable<Tuple<string, TextEntry[]>> Open()
     {
-        var path = Path.Combine(Project.Root, RelatedPath);
+        var path = Path.Combine(Project.As<PokemonProjectNS>().OriginalFolder, RelatedPath);
         var filelist = Directory.GetFiles(path, "*.json");
         foreach (var file in filelist)
         {

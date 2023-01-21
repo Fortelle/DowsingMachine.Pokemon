@@ -1,21 +1,32 @@
 ﻿using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Utilities;
 using System.Text;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen3;
 
-public class PokemonProjectIII : SingleFileProject, IPokemonProject
+public class PokemonProjectIII : FileProject, IPokemonProject
 {
+    [Option]
+    public GameTitle Title { get; set; }
+
     public GameInfo Game { get; set; }
+
 
     public int InternalPokemonCount = 412;
 
-    public PokemonProjectIII(GameTitle title, string baseFile) : base(title.ToString(), baseFile)
+    public PokemonProjectIII() : base()
     {
-        ((IPokemonProject)this).Set(title);
+    }
 
-        switch (title)
+    public override void Configure()
+    {
+        base.Configure();
+
+        ((IPokemonProject)this).Set(Title);
+
+        switch (Title)
         {
             case GameTitle.Ruby:
             case GameTitle.Sapphire:
@@ -142,7 +153,7 @@ public class PokemonProjectIII : SingleFileProject, IPokemonProject
     {
         var personal = GetData<Personal3[]>("PersonalTable");
 
-        var path = Path.Combine(OutputPath, $"personal.json");
+        var path = Path.Combine(OutputFolder, $"personal.json");
         JsonUtil.Serialize(path, personal, new JsonOptions() { NamePolicy = JsonNamePolicy.Lower });
         return path;
     }
@@ -179,7 +190,7 @@ public class PokemonProjectIII : SingleFileProject, IPokemonProject
                 var line = string.Join(",", data);
                 sb.AppendLine($"{dexNumbers[i]}\t{line}");
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.levelup.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }
@@ -195,7 +206,7 @@ public class PokemonProjectIII : SingleFileProject, IPokemonProject
                 var line = string.Join(",", data);
                 sb.AppendLine($"{dexNumbers[i]}\t{line}");
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tm.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }
@@ -212,7 +223,7 @@ public class PokemonProjectIII : SingleFileProject, IPokemonProject
                 var line = string.Join(",", data);
                 sb.AppendLine($"{dexNumbers[i]}\t{line}");
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }
@@ -223,7 +234,7 @@ public class PokemonProjectIII : SingleFileProject, IPokemonProject
             sb.AppendLine($"003.00\t338");
             sb.AppendLine($"006.00\t307");
             sb.AppendLine($"009.00\t308");
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor_ult.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor_ult.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }
@@ -236,7 +247,7 @@ public class PokemonProjectIII : SingleFileProject, IPokemonProject
                 var line = string.Join(",", moves);
                 sb.AppendLine($"{dexNumbers[index]}\t{line}");
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.egg.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }
@@ -245,7 +256,7 @@ public class PokemonProjectIII : SingleFileProject, IPokemonProject
         {
             var sb = new StringBuilder();
             sb.AppendLine($"175.00\t344");
-            var path = Path.Combine(OutputPath, $"{suffix}.special.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.special.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }

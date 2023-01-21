@@ -18,7 +18,7 @@ public class MessageReaderSV : DataReader<MultilingualCollection>
 
     protected override MultilingualCollection Open()
     {
-        var abspath = Project.GetPath(RelatedPath);
+        var abspath = Project.As<PokemonProjectSV>().GetPath(RelatedPath);
         var filelist = Directory.GetFiles(abspath, "messagedat*.trpak");
 
         var mc = new MultilingualCollection

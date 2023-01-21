@@ -17,7 +17,7 @@ public class JsonReader : DataReader<JsonNode>
 
     protected override JsonNode Open()
     {
-        var path = Project.GetPath(RelatedPath);
+        var path = Project.As<IFolderProject>().GetPath(RelatedPath);
         var text = File.ReadAllText(path);
         var json = JsonNode.Parse(text);
         return json;

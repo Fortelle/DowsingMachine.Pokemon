@@ -2,7 +2,7 @@
 using PBT.DowsingMachine.Projects;
 using System.Runtime.InteropServices;
 
-namespace PBT.DowsingMachine.Pokemon.Games;
+namespace PBT.DowsingMachine.Pokemon.Core.Gen7;
 
 [StructLayout(LayoutKind.Sequential)]
 [StringReference(@"message\113")]

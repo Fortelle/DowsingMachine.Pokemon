@@ -10,7 +10,7 @@ public class OverlayReader : StreamBinaryReader
 
     protected override Cache Open()
     {
-        var path = Project.GetPath(RelatedPath);
+        var path = Project.As<IFolderProject>().GetPath(RelatedPath);
         var overlay = new Overlay(path);
         var ms = new MemoryStream(overlay.Data);
         var br = new BinaryReader(ms);

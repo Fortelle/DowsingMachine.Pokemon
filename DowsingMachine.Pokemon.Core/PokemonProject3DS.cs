@@ -6,14 +6,23 @@ using PBT.DowsingMachine.Projects;
 
 namespace PBT.DowsingMachine.Pokemon.Core;
 
-public abstract class PokemonProject3DS : DataProject, IPokemonProject, IPreviewString
+public abstract class PokemonProject3DS : FolderProject, IPokemonProject, IPreviewString
 {
+    [Option]
+    public GameTitle Title { get; set; }
+
     public GameInfo Game { get; set; }
 
-    protected PokemonProject3DS(GameTitle title, string baseFolder)
-        : base($"{title}", baseFolder)
+
+    protected PokemonProject3DS() : base()
     {
-        ((IPokemonProject)this).Set(title);
+    }
+
+    public override void Configure()
+    {
+        base.Configure();
+
+        ((IPokemonProject)this).Set(Title);
     }
 
     protected class GarcReader : DataReader<byte[][]>
@@ -24,7 +33,7 @@ public abstract class PokemonProject3DS : DataProject, IPokemonProject, IPreview
 
         protected override byte[][] Open()
         {
-            var path = Project.GetPath(RelatedPath);
+            var path = Project.As<IFolderProject>().GetPath(RelatedPath);
             var garc = new GARC();
             garc.Open(path);
             return garc.Entries.Select(x => x.Data).ToArray();
@@ -68,7 +77,7 @@ public abstract class PokemonProject3DS : DataProject, IPokemonProject, IPreview
                 for (int i = 0; i < relpaths.Length; i++)
                 {
                     using var garc = new GARC();
-                    var path = Project.GetPath(relpaths[i]);
+                    var path = Project.As<IFolderProject>().GetPath(relpaths[i]);
                     garc.Open(path);
                     foreach (var entry in garc.Entries)
                     {

@@ -95,14 +95,15 @@ public class Personal8
 
     // 0x58
     public ushort Egg_formno;
-    [BitField(2)] public byte IsRegionalForm;
-    [BitField(2)] public byte DisabledDynamax;
+    [BitField(2)] public ushort IsChihouForm;
+    [BitField(2)] public ushort DisabledDynamax;
 
     // 0x5C
     public ushort Chihou_zukan_no;
-    public ushort Unknown5;
+    public ushort Chihou_form_no;
 
-    [ArraySize(0x48)] public byte[] Unknown6;
+    // 0x60
+    [ArraySize(72)] public byte[] Unknown2;
 
     // 0xA8
     public uint Tutor;

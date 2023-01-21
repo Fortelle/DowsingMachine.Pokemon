@@ -5,28 +5,25 @@ using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Pokemon.Core.Gen4;
 using PBT.DowsingMachine.Projects;
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 
 namespace PBT.DowsingMachine.Pokemon.Core;
 
-public abstract class PokemonProjectDS : ParallelProject, IPokemonProject
+public abstract class PokemonProjectDS : FolderProject, IPokemonProject
 {
+    [Option]
+    public string LanguageCode { get; set; }
+
+    [Option]
+    public GameTitle Title { get; set; }
+
     public GameInfo Game { get; set; }
-    public Dictionary<string, string[]> LanguageMap { get; }
-    public string[] LanguageCodes => LanguageMap[Variation];
 
-    protected PokemonProjectDS(GameTitle title, string baseFolder, string lang)
-        : base($"{title}", baseFolder, lang)
+    public override void Configure()
     {
-        ((IPokemonProject)this).Set(title);
-    }
+        base.Configure();
 
-    protected PokemonProjectDS(GameTitle title, string baseFolder, Dictionary<string, string[]> langs)
-        : base($"{title}", baseFolder, langs.Keys.ToArray())
-    {
-        ((IPokemonProject)this).Set(title);
+        ((IPokemonProject)this).Set(Title);
 
-        LanguageMap = langs;
     }
 
     protected class NarcReader : DataReader<byte[][]>
@@ -37,7 +34,7 @@ public abstract class PokemonProjectDS : ParallelProject, IPokemonProject
 
         protected override byte[][] Open()
         {
-            var path = Project.GetPath(RelatedPath);
+            var path = Project.As<IFolderProject>().GetPath(RelatedPath);
             var narc = new NARC();
             narc.Open(path);
             return narc.Entries.Select(x => x.Data).ToArray();
@@ -56,9 +53,9 @@ public abstract class PokemonProjectDS : ParallelProject, IPokemonProject
         {
             var msg = new MsgDataV1(data);
             var fn = msg.Seed.ToString();
-            var mw = new MsgWrapper(msg, fn, LanguageCodes.First())
+            var mw = new MsgWrapper(msg, fn, LanguageCode)
             {
-                Group = Variation,
+                Group = LanguageCode,
             };
             return mw;
         }).ToArray();
@@ -97,61 +94,53 @@ public abstract class PokemonProjectDS : ParallelProject, IPokemonProject
             }
         }
 
-        mc.Wrappers.Add(Variation, wrappers);
+        mc.Wrappers.Add(LanguageCode, wrappers);
         return mc;
     }
 
     [Dump]
     public IEnumerable<string> DumpMsgFile()
     {
-        var oldfolder = Variation;
-        foreach (var foldername in LanguageMap.Keys)
+        var outputFolder = Path.Combine(OutputFolder, "msg", LanguageCode);
+        Directory.CreateDirectory(outputFolder);
+
+        var narc = GetData<byte[][]>("msg", 0);
+
+        var hashes = DpRes.MsgFilenames
+            .Select(fn => MsgDataV1.CalcCrc($@"./data/{fn}.dat"))
+            .ToArray();
+        if (Game.Title is GameTitle.Diamond or GameTitle.Pearl or GameTitle.Platinum)
         {
-            Switch(foldername);
-
-            var outputFolder = Path.Combine(OutputPath, "msg", foldername);
-            Directory.CreateDirectory(outputFolder);
-
-            var narc = GetData<byte[][]>("msg", 0);
-
-            var hashes = DpRes.MsgFilenames
-                .Select(fn => MsgDataV1.CalcCrc($@"./data/{fn}.dat"))
-                .ToArray();
-            if (Game.Title is GameTitle.Diamond or GameTitle.Pearl or GameTitle.Platinum)
+            var j = 0;
+            foreach (var data in narc)
             {
-                var j = 0;
-                foreach (var data in narc)
+                var msg = new MsgDataV1(data);
+                var name = "";
+                while (true)
                 {
-                    var msg = new MsgDataV1(data);
-                    var name = "";
-                    while (true)
+                    if (msg.Seed == hashes[j])
                     {
-                        if (msg.Seed == hashes[j])
-                        {
-                            name = DpRes.MsgFilenames[j];
-                            break;
-                        }
-                        j++;
+                        name = DpRes.MsgFilenames[j];
+                        break;
                     }
-                    Debug.Assert(name != null);
-                    var path = Path.Combine(outputFolder, name + ".dat");
-                    File.WriteAllBytes(path, data);
-                    yield return path;
+                    j++;
                 }
+                Debug.Assert(name != null);
+                var path = Path.Combine(outputFolder, name + ".dat");
+                File.WriteAllBytes(path, data);
+                yield return path;
             }
-            else
-            {
-                var j = 0;
-                for (var i = 0; i < narc.Length; i++)
-                {
-                    var path = Path.Combine(outputFolder, i.ToString() + ".dat");
-                    File.WriteAllBytes(path, narc[i]);
-                    yield return path;
-                }
-            }
-
         }
-        Switch(oldfolder);
+        else
+        {
+            var j = 0;
+            for (var i = 0; i < narc.Length; i++)
+            {
+                var path = Path.Combine(outputFolder, i.ToString() + ".dat");
+                File.WriteAllBytes(path, narc[i]);
+                yield return path;
+            }
+        }
     }
 
 }

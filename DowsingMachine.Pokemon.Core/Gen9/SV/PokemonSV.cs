@@ -30,10 +30,8 @@ public class PokemonProjectSV : PokemonProjectNS
         ["Trad_Chinese"] = new[] { "zh-Hant" },
     };
 
-    public PokemonProjectSV(GameTitle title, string version, string baseFolder, string? patchFolder = null)
-        : base(title, version, baseFolder, patchFolder)
+    public PokemonProjectSV() : base()
     {
-
         AddReference("data.trpfd",
             new ByteReader(@"romfs\arc\data.trpfd"),
             FlatBufferConverter.DeserializeFrom<TRPFD>
@@ -68,6 +66,7 @@ public class PokemonProjectSV : PokemonProjectNS
 
         AddReference("learnsets", ReadLearnsets);
     }
+
 
     public class TrpfsReader : DataReader<Trpak, byte[]>
     {
@@ -163,7 +162,7 @@ public class PokemonProjectSV : PokemonProjectNS
         var trpfd = GetData<TRPFD>($"data.trpfd");
         var trpfs = GetData<TRPFS>($"data.trpfs");
 
-        var outputFolder = Path.Combine(PatchFolder ?? Root, "trpfs");
+        var outputFolder = Path.Combine(PatchFolder ?? OriginalFolder, "trpfs");
 
         for (var i = 0; i < trpfd.PackFilenames.Length; i++)
         {
@@ -179,8 +178,8 @@ public class PokemonProjectSV : PokemonProjectNS
     [Extraction]
     public IEnumerable<string> ExtractTrpak()
     {
-        var originFolder = Path.Combine(Root, "trpak");
-        var patchFolder = Path.Combine(PatchFolder ?? Root, "trpak"); 
+        var originFolder = Path.Combine(OriginalFolder, "trpak");
+        var patchFolder = Path.Combine(PatchFolder ?? OriginalFolder, "trpak"); 
 
         var trpfd = GetData<TRPFD>($"data.trpfd");
         var trpfs = GetData<TRPFS>($"data.trpfs");
@@ -355,12 +354,10 @@ public class PokemonProjectSV : PokemonProjectNS
     public void DumpLearnsets()
     {
         var learnsets = GetData<LearnsetTableCollection>("learnsets");
-        var outputFolder = Path.Combine(OutputPath, "learnset");
+        var outputFolder = Path.Combine(OutputFolder, "learnset");
         var prefix = $"scarletviolet_{Version.Major}.{Version.Minor}.{Version.Build}";
         var format = "{0:0000}.{1:00}";
         learnsets.Output(outputFolder, format, prefix);
     }
 
 }
-
-

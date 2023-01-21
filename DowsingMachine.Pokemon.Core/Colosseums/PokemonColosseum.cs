@@ -2,9 +2,8 @@
 using PBT.DowsingMachine.FileFormats;
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Projects;
-using System.Text;
 
-namespace PBT.DowsingMachine.Pokemon.Core.Projects.Colosseums;
+namespace PBT.DowsingMachine.Pokemon.Core.Colosseums;
 
 // https://github.com/PekanMmd/Pokemon-XD-Code/blob/3c2ce966e188910e118cb84c0924bd7239c5fdeb/Objects/file%20formats/XGRelocationTable.swift
 // https://github.com/PekanMmd/Pokemon-XD-Code/blob/21ff17c676271c49630387531fb180ae2d99b03a/CMRelIndexes.swift
@@ -16,7 +15,11 @@ public class PokemonColosseum : DataProject, IPokemonProject
     public record TMHMData(int Type, int Move);
     public record TutorData(int Move);
 
+    [Option]
+    public GameTitle Title { get; set; }
+
     public GameInfo Game { get; set; }
+
 
     protected class FsysReader : DataReader<FSYS, byte[]>
     {
@@ -27,15 +30,22 @@ public class PokemonColosseum : DataProject, IPokemonProject
             ItemName = item;
         }
 
-        protected override FSYS Open() => new FSYS(Project.GetPath(RelatedPath));
+        protected override FSYS Open() => new FSYS(Project.As<IFolderProject>().GetPath(RelatedPath));
         protected override byte[] Read(FSYS fsys) => fsys[ItemName];
     }
 
-    public PokemonColosseum(GameTitle title, string root) : base(title.ToString(), root)
+    public PokemonColosseum()
     {
-        ((IPokemonProject)this).Set(title);
 
-        switch (title)
+    }
+
+    public override void Configure()
+    {
+        base.Configure();
+
+        ((IPokemonProject)this).Set(Title);
+
+        switch (Title)
         {
             case GameTitle.Colosseum:
                 AddReference("PersonalTable",
@@ -94,7 +104,6 @@ public class PokemonColosseum : DataProject, IPokemonProject
                 break;
 
         }
-
 
     }
 
@@ -174,7 +183,7 @@ public class PokemonColosseum : DataProject, IPokemonProject
                     .ToArray();
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.levelup.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -191,7 +200,7 @@ public class PokemonColosseum : DataProject, IPokemonProject
                     (x, j) => x.Type == 0 ? $"{x.Move}:TM{j + 1:00}" : $"{x.Move}:HM{j - 49:00}");
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tm.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -203,7 +212,7 @@ public class PokemonColosseum : DataProject, IPokemonProject
                 var data = personals[i].EggMoves.TakeWhile(x => x > 0).Select(x => (int)x).ToArray();
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.egg.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -225,7 +234,7 @@ public class PokemonColosseum : DataProject, IPokemonProject
                     (x, j) => $"{x}");
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -243,7 +252,7 @@ public class PokemonColosseum : DataProject, IPokemonProject
                 }.Select(x => x > 999 ? 0 : x).ToArray();
                 lt.Add(new PokemonId(151), data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.mewpattern.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.mewpattern.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -253,7 +262,7 @@ public class PokemonColosseum : DataProject, IPokemonProject
             var lt = new LearnsetTable();
             var data = tutor.Select(x => x.Move).ToArray();
             lt.Add(new PokemonId(151), data);
-            var path = Path.Combine(OutputPath, $"{suffix}.mewtutor.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.mewtutor.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -275,7 +284,7 @@ public class PokemonColosseum : DataProject, IPokemonProject
                 };
                 lt.Add(new PokemonId(pi), data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.purification.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.purification.txt");
             lt.Save(path, format);
             yield return path;
         }

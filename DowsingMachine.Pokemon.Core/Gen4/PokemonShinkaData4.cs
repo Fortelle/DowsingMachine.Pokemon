@@ -1,4 +1,4 @@
-﻿namespace PBT.DowsingMachine.Pokemon.Games;
+﻿namespace PBT.DowsingMachine.Pokemon.Core.Gen4;
 
 public struct PokemonShinkaData4
 {

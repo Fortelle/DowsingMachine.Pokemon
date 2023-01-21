@@ -1,6 +1,6 @@
 ﻿using PBT.DowsingMachine.Data;
 
-namespace PBT.DowsingMachine.Pokemon.Core.Projects.Colosseums;
+namespace PBT.DowsingMachine.Pokemon.Core.Colosseums;
 
 public class PersonalColosseum
 {

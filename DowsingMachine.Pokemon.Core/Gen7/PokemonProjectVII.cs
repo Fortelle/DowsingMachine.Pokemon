@@ -1,12 +1,10 @@
-﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Pokemon.Common;
-using PBT.DowsingMachine.Pokemon.Core;
+﻿using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats;
-using PBT.DowsingMachine.Pokemon.Core.Gen7;
 using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Utilities;
 using System.Diagnostics;
 
-namespace PBT.DowsingMachine.Pokemon.Games;
+namespace PBT.DowsingMachine.Pokemon.Core.Gen7;
 
 public partial class PokemonProjectVII : PokemonProject3DS
 {
@@ -35,9 +33,13 @@ public partial class PokemonProjectVII : PokemonProject3DS
         ["zh-Hant"] = new[] { @"romfs\a\0\3\9", @"romfs\a\0\4\9" },
     };
 
-    public PokemonProjectVII(GameTitle title, string baseFolder) : base(title, baseFolder)
+    public PokemonProjectVII() : base()
     {
-        ((IPokemonProject)this).Set(title);
+    }
+
+    public override void Configure()
+    {
+        base.Configure();
 
         AddReference("PersonalTable",
             new GarcReader(@"romfs\a\0\1\7"),
@@ -64,7 +66,7 @@ public partial class PokemonProjectVII : PokemonProject3DS
             MarshalArray<Item7>
             );
 
-        switch (title)
+        switch (Title)
         {
             case GameTitle.Sun:
                 AddReference("MachineList",
@@ -99,7 +101,7 @@ public partial class PokemonProjectVII : PokemonProject3DS
         }));
     }
 
-    public static TamagoWazaData ReadEggMoves(BinaryReader br)
+    private static TamagoWazaData ReadEggMoves(BinaryReader br)
     {
         const int MAX_EGG_WAZA_NUM = 31;
         var index = br.ReadUInt16();
@@ -115,8 +117,7 @@ public partial class PokemonProjectVII : PokemonProject3DS
         return new TamagoWazaData(index, count, list);
     }
 
-
-    public static int[][] ReadTutorListORAS(BinaryReader br)
+    private static int[][] ReadTutorListORAS(BinaryReader br)
     {
         var list = new List<List<int>>();
         for (var i = 0; i < 4; i++)
@@ -133,7 +134,7 @@ public partial class PokemonProjectVII : PokemonProject3DS
         return list.Select(x => x.ToArray()).ToArray();
     }
 
-    public static LevelupMove[] ReadLevelupMoves(BinaryReader br)
+    private static LevelupMove[] ReadLevelupMoves(BinaryReader br)
     {
         var list = new List<LevelupMove>();
         while (true)
@@ -146,15 +147,15 @@ public partial class PokemonProjectVII : PokemonProject3DS
         return list.ToArray();
     }
 
-    public int[] ReadTMHMList(BinaryReader br)
+    private static int[] ReadTMHMList(BinaryReader br)
     {
         return Enumerable.Range(0, 100).Select(_ => (int)br.ReadInt16()).ToArray();
     }
 
-    public int[][] ReadBpWazaOshieTable(BinaryReader br)
+    private static int[][] ReadBpWazaOshieTable(BinaryReader br)
     {
         var list = new List<int[]>();
-        for(var i = 0; i < 4; i++)
+        for (var i = 0; i < 4; i++)
         {
             var list2 = new List<int>();
             while (true)
@@ -180,7 +181,7 @@ public partial class PokemonProjectVII : PokemonProject3DS
             {
                 for (var j = 1; j < personals[i].Form_max; j++)
                 {
-                    if (ids[personals[i].Form_index + j - 1] != PokemonId.Empty) throw new Exception();
+                    Debug.Assert(ids[personals[i].Form_index + j - 1] == PokemonId.Empty);
                     ids[personals[i].Form_index + j - 1] = new PokemonId(i, j);
                 }
             }
@@ -207,23 +208,15 @@ public partial class PokemonProjectVII : PokemonProject3DS
             }
         }
         var x = Array.FindIndex(ids, id => id == "671.04");
-        ids[x+1] = new PokemonId(671, 5);
+        ids[x + 1] = new PokemonId(671, 5);
         return ids;
     }
 
-    [Extraction]
-    public string ExtractPersonal()
-    {
-        var personal = GetData<Personal5[]>("PersonalTable")[..^1];
-        var path = Path.Combine(OutputPath, $"personal.json");
-        JsonUtil.Serialize(path, personal);
-        return path;
-    }
 
     [Extraction]
     public IEnumerable<string> ExtractLearnset()
     {
-        Directory.CreateDirectory(OutputPath);
+        Directory.CreateDirectory(OutputFolder);
 
         var suffix = Game.Title switch
         {
@@ -244,11 +237,12 @@ public partial class PokemonProjectVII : PokemonProject3DS
                     lt.Add(dexNumbers[i]);
                     //continue;
                 }
-                else{
+                else
+                {
                     lt.Add(dexNumbers[i], $"{personals[i].Zenryoku_waza_after}:{personals[i].Zenryoku_waza_before}");
                 }
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.zmove.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.zmove.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -261,7 +255,7 @@ public partial class PokemonProjectVII : PokemonProject3DS
                 var data = moves[i].Select(x => $"{x.Move}:{x.Level}");
                 lt.Add(dexNumbers[i], data.ToArray());
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.levelup.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -276,11 +270,11 @@ public partial class PokemonProjectVII : PokemonProject3DS
                 var data = PokemonUtils.MatchFlags(tmlist, tm, (x, j) => $"{x}:TM{j + 1:00}");
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tm.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tmlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tmlist.json");
             JsonUtil.Serialize(path2, tmlist);
             yield return path2;
         }
@@ -304,11 +298,11 @@ public partial class PokemonProjectVII : PokemonProject3DS
                 var data = PokemonUtils.MatchFlags(tutorlist, tm);
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor_ult.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor_ult.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tutorultlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tutorultlist.json");
             JsonUtil.Serialize(path2, tutorlist);
             yield return path2;
         }
@@ -329,11 +323,11 @@ public partial class PokemonProjectVII : PokemonProject3DS
 
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tutorultlist.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tutorultlist.json");
             JsonUtil.Serialize(path2, tutorlist);
             yield return path2;
         }
@@ -350,11 +344,11 @@ public partial class PokemonProjectVII : PokemonProject3DS
                 lt.Add(ids[i], data);
             }
 
-            var path = Path.Combine(OutputPath, $"{suffix}.egg.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tamagowaza.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tamagowaza.json");
             JsonUtil.Serialize(path2, eggs);
             yield return path2;
         }
@@ -386,7 +380,7 @@ public partial class PokemonProjectVII : PokemonProject3DS
                 new[]{ 184, 558, 559 },
                 new[]{ 549, 554, 553 },
             };
-            for(var i = 0; i < 3; i++)
+            for (var i = 0; i < 3; i++)
             {
                 lt.Add(new PokemonId(646, i), change_waza_table[0][i], change_waza_table[1][i]);
             }
@@ -406,7 +400,7 @@ public partial class PokemonProjectVII : PokemonProject3DS
                 lt.Add(new PokemonId(800, 2), 714);
             }
 
-            var path = Path.Combine(OutputPath, $"{suffix}.special.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.special.txt");
             lt.Save(path, format);
             yield return path;
         }

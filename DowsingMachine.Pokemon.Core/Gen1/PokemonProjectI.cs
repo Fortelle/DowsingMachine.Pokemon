@@ -1,32 +1,42 @@
 ﻿using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Utilities;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen1;
 
-public class PokemonProjectI : SingleFileProject, IPokemonProject
+public class PokemonProjectI : FileProject, IPokemonProject
 {
+    [Option]
+    public GameTitle Title { get; set; }
+
     public GameInfo Game { get; set; }
 
     public const int InternalPokemonCount = 0xBE;
 
-    public bool IsRGB => Game.Title is GameTitle.Red
+    public bool IsRGB => Title is GameTitle.Red
         or GameTitle.Green
         or GameTitle.Blue
         or GameTitle.RedVC
         or GameTitle.BlueVC
         or GameTitle.GreenVC;
 
-    public bool IsVC => Game.Title is GameTitle.RedVC
+    public bool IsVC => Title is GameTitle.RedVC
         or GameTitle.BlueVC
         or GameTitle.GreenVC
         or GameTitle.YellowVC;
 
-    public PokemonProjectI(GameTitle title, string baseFile) : base($"{title}", baseFile)
+    public PokemonProjectI() : base()
     {
-        ((IPokemonProject)this).Set(title);
+    }
 
-        switch (title)
+    public override void Configure()
+    {
+        base.Configure();
+
+        ((IPokemonProject)this).Set(Title);
+
+        switch (Title)
         {
             case GameTitle.Red:
             case GameTitle.Green:
@@ -139,7 +149,7 @@ public class PokemonProjectI : SingleFileProject, IPokemonProject
     {
         var personal = GetPokemon();
 
-        var path = Path.Combine(OutputPath, $"personal.json");
+        var path = Path.Combine(OutputFolder, $"personal.json");
         JsonUtil.Serialize(path, personal);
         return path;
     }
@@ -169,11 +179,11 @@ public class PokemonProjectI : SingleFileProject, IPokemonProject
                 var data = new int[] { personals[i].Skill1, personals[i].Skill2, personals[i].Skill3, personals[i].Skill4 };
                 lt.Add(new PokemonId(personals[i].OldNumber), data);
             }
-            var path = Path.Combine(OutputPath, "txt", $"{suffix}.basic.txt");
+            var path = Path.Combine(OutputFolder, "txt", $"{suffix}.basic.txt");
             lt.Save(path, format);
             yield return path;
 
-            path = Path.Combine(OutputPath, "json", $"{suffix}.basic.json");
+            path = Path.Combine(OutputFolder, "json", $"{suffix}.basic.json");
             lt.SaveJson(path, false, false);
             yield return path;
         }
@@ -187,15 +197,15 @@ public class PokemonProjectI : SingleFileProject, IPokemonProject
                 var data = evo[i].Moves.Select(x => $"{x.Move}:{x.Level}").ToArray();
                 lt.Add(new PokemonId(dexNumbers[i]), data);
             }
-            var path = Path.Combine(OutputPath, "txt", $"{suffix}.levelup.txt");
+            var path = Path.Combine(OutputFolder, "txt", $"{suffix}.levelup.txt");
             lt.Save(path, format);
             yield return path;
 
-            path = Path.Combine(OutputPath, "json", $"{suffix}.levelup.json");
+            path = Path.Combine(OutputFolder, "json", $"{suffix}.levelup.json");
             lt.SaveJson(path, false, true);
             yield return path;
 
-            path = Path.Combine(OutputPath, $"{suffix}.levelup.json");
+            path = Path.Combine(OutputFolder, $"{suffix}.levelup.json");
             JsonUtil.Serialize(path, evo.Select(x => x.Moves));
             yield return path;
         }
@@ -212,15 +222,15 @@ public class PokemonProjectI : SingleFileProject, IPokemonProject
                 var data = PokemonUtils.MatchFlags(tmlist, tm, (m, j) => j < 50 ? $"{m}:TM{j + 1:00}" : $"{m}:HM{j - 49:00}");
                 lt.Add(new PokemonId(personals[i].OldNumber), data);
             }
-            var path = Path.Combine(OutputPath, "txt", $"{suffix}.tm.txt");
+            var path = Path.Combine(OutputFolder, "txt", $"{suffix}.tm.txt");
             lt.Save(path, format);
             yield return path;
 
-            path = Path.Combine(OutputPath, "json", $"{suffix}.tm.json");
+            path = Path.Combine(OutputFolder, "json", $"{suffix}.tm.json");
             lt.SaveJson(path, false, true);
             yield return path;
 
-            path = Path.Combine(OutputPath, $"{suffix}.tm.json");
+            path = Path.Combine(OutputFolder, $"{suffix}.tm.json");
             JsonUtil.Serialize(path, tmlist);
             yield return path;
         }

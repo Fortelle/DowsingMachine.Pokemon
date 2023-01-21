@@ -1,6 +1,5 @@
 ﻿using GFMSG;
 using PBT.DowsingMachine.Pokemon.Common;
-using PBT.DowsingMachine.Pokemon.Core.FileFormats.FlatBuffers;
 using PBT.DowsingMachine.Projects;
 using System.Text;
 
@@ -73,9 +72,13 @@ public class PokemonProjectSWSH : PokemonProjectNS
         ["Trad_Chinese"] = new[] { "zh-Hant" },
     };
 
-    public PokemonProjectSWSH(GameTitle title, string version, string baseFolder, string? patchFolder = null)
-        : base(title, version, baseFolder, patchFolder)
+    public PokemonProjectSWSH() : base()
     {
+    }
+
+    public override void Configure()
+    {
+        base.Configure();
 
         AddReference("PersonalTable",
             new MatrixReader(@"romfs\bin\pml\personal\personal_total.bin", Version < new Version("1.2") ? 0xA8 : 0xB0),
@@ -98,6 +101,7 @@ public class PokemonProjectSWSH : PokemonProjectNS
 
         AddReference($"message", new MessageReader(@$"romfs\bin\message\", LanguageMaps));
         AddReference($"messagereference", new DataInfo(@"romfs\bin\message\English\common\{0}.dat"));
+
     }
 
     protected override MsgWrapper GetPreviewMsgWrapper(object[] args)
@@ -199,7 +203,7 @@ public class PokemonProjectSWSH : PokemonProjectNS
     [Dump]
     public IEnumerable<string> DumpLearnsets()
     {
-        var outputFolder = Path.Combine(OutputPath, "learnset");
+        var outputFolder = Path.Combine(OutputFolder, "learnset");
         Directory.CreateDirectory(outputFolder);
         var indexes = GetPokemonIndexes();
         var personals = GetData<object[]>("PersonalTable").Cast<Personal8>().ToArray();

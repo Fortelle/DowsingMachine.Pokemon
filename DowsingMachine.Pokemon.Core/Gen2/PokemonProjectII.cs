@@ -2,21 +2,31 @@
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.Gen1;
 using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Utilities;
 using System.Text;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen2;
 
-public class PokemonProjectII : SingleFileProject, IPokemonProject
+public class PokemonProjectII : FileProject, IPokemonProject
 {
+    [Option]
+    public GameTitle Title { get; set; }
+
     public GameInfo Game { get; set; }
 
     private const int MONS_TBL_SIZE = 0x0020;
 
-    public PokemonProjectII(GameTitle title, string baseFile) : base(title.ToString(), baseFile)
+    public PokemonProjectII() : base()
     {
-        ((IPokemonProject)this).Set(title);
+    }
 
-        switch (title)
+    public override void Configure()
+    {
+        base.Configure();
+
+        ((IPokemonProject)this).Set(Title);
+
+        switch (Title)
         {
             case GameTitle.Gold or GameTitle.Silver:
                 AddReference("PersonalTable", new SingleReader(0x51AA9), ReadPokemon);
@@ -162,7 +172,7 @@ public class PokemonProjectII : SingleFileProject, IPokemonProject
     {
         var personal = GetData<Personal2[]>("PersonalTable");
 
-        var path = Path.Combine(OutputPath, $"personal.json");
+        var path = Path.Combine(OutputFolder, $"personal.json");
         JsonUtil.Serialize(path, personal);
         return path;
     }
@@ -183,7 +193,7 @@ public class PokemonProjectII : SingleFileProject, IPokemonProject
                 var line = string.Join(",", data);
                 sb.AppendLine($"{personals[i].No:000}\t{line}");
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tm.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }
@@ -198,7 +208,7 @@ public class PokemonProjectII : SingleFileProject, IPokemonProject
                 var line = string.Join(",", data);
                 sb.AppendLine($"{personals[i].No:000}\t{line}");
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }
@@ -212,7 +222,7 @@ public class PokemonProjectII : SingleFileProject, IPokemonProject
                 var line = string.Join(",", data);
                 sb.AppendLine($"{i + 1:000}\t{line}");
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.levelup.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }
@@ -225,7 +235,7 @@ public class PokemonProjectII : SingleFileProject, IPokemonProject
                 var line = string.Join(",", eggs[i]);
                 sb.AppendLine($"{i + 1:000}\t{line}");
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.egg.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
             File.WriteAllText(path, sb.ToString());
             yield return path;
         }

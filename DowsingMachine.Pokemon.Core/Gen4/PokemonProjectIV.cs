@@ -1,20 +1,25 @@
 ﻿using PBT.DowsingMachine.FileFormats;
 using PBT.DowsingMachine.Pokemon.Common;
-using PBT.DowsingMachine.Pokemon.Core;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Pokemon.Core.Gen3;
-using PBT.DowsingMachine.Pokemon.Core.Gen4;
+using PBT.DowsingMachine.Pokemon.Games;
 using PBT.DowsingMachine.Projects;
 
-namespace PBT.DowsingMachine.Pokemon.Games;
+namespace PBT.DowsingMachine.Pokemon.Core.Gen4;
 
 public class PokemonProjectIV : PokemonProjectDS
 {
     public int InternalPokemonCount = 501;
 
-    public PokemonProjectIV(GameTitle title, string baseFolder, Dictionary<string, string[]> langs) : base(title, baseFolder, langs)
+    public PokemonProjectIV() : base()
     {
-        switch (title)
+    }
+
+    public override void Configure()
+    {
+        base.Configure();
+
+        switch (Title)
         {
             case GameTitle.Diamond:
             case GameTitle.Pearl:
@@ -181,7 +186,8 @@ public class PokemonProjectIV : PokemonProjectDS
     [Dump]
     public IEnumerable<string> DumpLearnset()
     {
-        var suffix = Game.Title switch {
+        var suffix = Game.Title switch
+        {
             GameTitle.Diamond or GameTitle.Pearl => "diamondpearl",
             GameTitle.Platinum => "platinum",
             GameTitle.HeartGold or GameTitle.SoulSilver => "heartgoldsoulsilver",
@@ -201,11 +207,11 @@ public class PokemonProjectIV : PokemonProjectDS
                 var data = PokemonUtils.MatchFlags(tmlist, tm, (x, j) => j < 92 ? $"{x}:TM{j + 1:00}" : $"{x}:HM{j - 91:00}");
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tm.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
             lt.Save(path, format);
             yield return path;
 
-            var path2 = Path.Combine(OutputPath, $"{suffix}.tm.json");
+            var path2 = Path.Combine(OutputFolder, $"{suffix}.tm.json");
             lt.SaveJson(path2, true, true);
             yield return path2;
         }
@@ -218,7 +224,7 @@ public class PokemonProjectIV : PokemonProjectDS
                 var data = moves[i].Select(x => $"{x.Move}:{x.Level}").ToArray();
                 lt.Add(dexNumbers[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.levelup.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -246,14 +252,14 @@ public class PokemonProjectIV : PokemonProjectDS
             var DRAGON_TYPE = 16;
             for (var i = 0; i < personals.Length; i++)
             {
-                if(personals[i].Type1 == DRAGON_TYPE || personals[i].Type2 == DRAGON_TYPE)
+                if (personals[i].Type1 == DRAGON_TYPE || personals[i].Type2 == DRAGON_TYPE)
                 {
                     lt.Add(dexNumbers[i], 434);
                 }
             }
             lt.Add(new PokemonId(493, DRAGON_TYPE), 434);
 
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor_ult.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor_ult.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -272,7 +278,7 @@ public class PokemonProjectIV : PokemonProjectDS
                 var data = PokemonUtils.MatchFlags(tmlist, flags[i]);
                 lt.Add(number[i], data);
             }
-            var path = Path.Combine(OutputPath, $"{suffix}.tutor.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -288,7 +294,7 @@ public class PokemonProjectIV : PokemonProjectDS
             }
             //lt.Append(new PokemonId(175), 344);
 
-            var path = Path.Combine(OutputPath, $"{suffix}.egg.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
             lt.Save(path, format);
             yield return path;
         }
@@ -308,7 +314,7 @@ public class PokemonProjectIV : PokemonProjectDS
                 }
             }
 
-            var path = Path.Combine(OutputPath, $"{suffix}.special.txt");
+            var path = Path.Combine(OutputFolder, $"{suffix}.special.txt");
             lt.Save(path, format);
             yield return path;
         }
