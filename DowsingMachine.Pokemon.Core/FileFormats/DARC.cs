@@ -1,47 +1,20 @@
 ﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Projects;
 using System.Diagnostics;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
 // Directory ARChive
 // https://www.3dbrew.org/wiki/DARC
-public class DARC : ICollectionArchive<byte[]>, ILargeArchive
+public class DARC : ICollectionArchive<string, byte[]>, IDisposable
 {
-    protected Stream Stream { get; set; }
-    protected BinaryReader Reader { get; set; }
-
     private DarcHeader Header { get; set; }
     private List<DarcEntry> Files { get; set; }
     private List<DarcName> Names { get; set; }
 
-    public IEnumerable<Entry<byte[]>> Entries
-    {
-        get
-        {
-            for (var i = 0; i < Files.Count; i++)
-            {
-                if (!Files[i].IsFolder)
-                {
-                    var path = GetName(Files[i].NameOffset);
-                    for (var j = i - 1; j > 0; j--)
-                    {
-                        if (Files[j].IsFolder)
-                        {
-                            path = GetName(Files[j].NameOffset) + "/" + path;
-                            while (Files[j].DataOffset > 0)
-                            {
-                                j = (int)Files[j].DataOffset;
-                                path = GetName(Files[j].NameOffset) + "/" + path;
-                            }
-                            break;
-                        }
-                    }
-                    yield return new Entry<byte[]>(this[i], path, i);
-                }
-            }
-        }
-    }
+    private BinaryReader Reader { get; set; }
+
+    public int Count => Files.Count;
+    public string[] Keys => Names.Select(x => x.Name).ToArray();
 
     public byte[] this[int index]
     {
@@ -65,36 +38,54 @@ public class DARC : ICollectionArchive<byte[]>, ILargeArchive
         }
     }
 
+    public IEnumerable<Entry<byte[]>> AsEnumerable()
+    {
+        for (var i = 0; i < Files.Count; i++)
+        {
+            if (!Files[i].IsFolder)
+            {
+                var dir = new List<string>();
+                for (var j = i - 1; j > 0; j--)
+                {
+                    if (Files[j].IsFolder)
+                    {
+                        // Names[j] ???
+                        dir.Add(GetName(Files[j].NameOffset));
+                        while (Files[j].DataOffset > 0)
+                        {
+                            j = (int)Files[j].DataOffset;
+                            dir.Add(GetName(Files[j].NameOffset));
+                        }
+                        break;
+                    }
+                }
+                var filename = GetName(Files[i].NameOffset);
+                yield return new Entry<byte[]>(this[i], filename, i)
+                {
+                    Directories = dir.ToArray()
+                };
+            }
+        }
+    }
 
+    
     public DARC()
     {
     }
 
-    public DARC(byte[] data)
-    {
-        Open(data);
-    }
+    public DARC(string path) => Open(path);
+    public DARC(byte[] data) => Open(data);
 
     public void Open(string path)
     {
-        Stream = File.OpenRead(path);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(File.OpenRead(path));
 
         Load(Reader);
     }
 
     public void Open(byte[] data)
     {
-        Stream = new MemoryStream(data);
-        Reader = new BinaryReader(Stream);
-
-        Load(Reader);
-    }
-
-    public void Open(Stream stream)
-    {
-        Stream = stream;
-        Reader = new BinaryReader(stream);
+        Reader = new BinaryReader(new MemoryStream(data));
 
         Load(Reader);
     }
@@ -113,11 +104,11 @@ public class DARC : ICollectionArchive<byte[]>, ILargeArchive
         }
 
         Names = new();
-        var pos = br.BaseStream.Position;
+        var beginpos = br.BaseStream.Position;
         for (var i = 0; i < root.DataSize; i++)
         {
             var name = "";
-            var offset = br.BaseStream.Position - pos;
+            var offset = br.BaseStream.Position - beginpos;
             while (true)
             {
                 var c = br.ReadUInt16();
@@ -140,9 +131,7 @@ public class DARC : ICollectionArchive<byte[]>, ILargeArchive
     public void Dispose()
     {
         Reader?.Dispose();
-        Stream?.Dispose();
     }
-
 
     private class DarcHeader
     {

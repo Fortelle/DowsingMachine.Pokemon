@@ -4,12 +4,12 @@ using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Structures;
 using PBT.DowsingMachine.Utilities;
-using System.Diagnostics;
 
 namespace PBT.DowsingMachine.Pokemon.Core;
 
-public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPreviewString
+public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject
 {
     [Option]
     public GameTitle Title { get; set; }
@@ -18,10 +18,12 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
 
     protected PokemonProjectNS() : base()
     {
-        AddReference("main", new ArchiveReader<NSO0>(@"exefs\main"));
-        AddReference("rtld", new ArchiveReader<NSO0>(@"exefs\rtld"));
-        AddReference("sdk", new ArchiveReader<NSO0>(@"exefs\sdk"));
-        AddReference("subsdk0", new ArchiveReader<NSO0>(@"exefs\subsdk0"));
+        Resources.Add(new DataResource("main")
+        {
+            Reference = new FileRef(@"exefs\main"),
+            Reader = new FileReader<NSO0>(),
+            Previewable = false,
+        });
     }
 
     public override void Configure()
@@ -31,239 +33,136 @@ public abstract class PokemonProjectNS : ExtendableProject, IPokemonProject, IPr
         ((IPokemonProject)this).Set(Title);
     }
 
-    [Extraction]
-    public IEnumerable<string> ExtractNso()
+    [Action]
+    public IEnumerable<string> ExtractAllGfpak()
     {
-        var outputFolder = Path.Combine(OutputFolder, "nso");
-        Directory.CreateDirectory(outputFolder);
-        var names = new[] { "main", "rtld", "sdk", "subsdk0" };
-
-        foreach(var name in names)
+        var files = DirectoryUtil.GetFiles(SourceFolder, "*.gfpak");
+        foreach (var file in files)
         {
-            var nso = GetData<NSO0>(name);
-            File.WriteAllBytes(Path.Combine(outputFolder, $"{name}.text"), nso.Text);
-            File.WriteAllBytes(Path.Combine(outputFolder, $"{name}.rodata"), nso.Rodata);
-            File.WriteAllBytes(Path.Combine(outputFolder, $"{name}.data"), nso.Data);
-            yield return name;
+            using var gfpak = new GFPAK(file.FullPath);
+            var outfolder = Path.Combine(OutputFolder, "gfpak", file.RelativePart);
+
+            foreach (var entry in gfpak.AsEnumerable())
+            {
+                Directory.CreateDirectory(entry.GetDirectoryName());
+                var path = Path.Combine(outfolder, entry.GetFullpath());
+                File.WriteAllBytes(path, entry.Data);
+            }
+
+            yield return outfolder;
         }
     }
 
-    [Extraction]
-    public virtual IEnumerable<string> ExtractFiles(string output)
+    [Action]
+    public IEnumerable<string> ExtractAllPngInGfpak()
     {
-        if (true)
+        var files = DirectoryUtil.GetFiles(SourceFolder, "*.gfpak");
+        foreach (var file in files)
         {
-            var files = DirectoryUtil.GetFiles(OriginalFolder, "*.gfpak"); //  + @"\romfs\bin\archive\chara\data\tr"
-            foreach (var file in files)
+            using var gfpak = new GFPAK(file.FullPath);
+            foreach (var entry in gfpak.AsEnumerable())
             {
-                using var gfpak = new GFPAK(file.Path);
-                var outfolder = Path.Combine(
-                    output,
-                    "gfpak",
-                    file.RelativeDirectoryName,
-                    file.FileNameWithoutExtension
-                    );
-
-                foreach (var entry in gfpak.Entries)
+                if (BinaryUtil.CheckSignature(entry.Data, "BNTX"))
                 {
-                    var path = Path.Combine(outfolder, entry.Parents[0], entry.Name);
-                    Directory.CreateDirectory(Path.GetDirectoryName(path));
-                    File.WriteAllBytes(path, entry.Data);
-
-                    if (false && BinaryUtil.CheckSignature(entry.Data, "BNTX"))
-                    {
-                        using var bntx = new BNTX(entry.Data);
-                        if (bntx.Name == null) continue;
-                        var bntnPath = Path.Combine(
-                            output,
-                            "bntx_from_gfpak",
-                            file.RelativeDirectoryName,
-                            file.FileNameWithoutExtension,
-                            Path.ChangeExtension(bntx.Name, ".bntx")
-                            );
-                        Directory.CreateDirectory(Path.GetDirectoryName(bntnPath));
-                        File.WriteAllBytes(bntnPath, entry.Data);
-
-                        var imagePath = Path.Combine(
-                            output,
-                            "png_from_gfpak_bntx",
-                            file.RelativeDirectoryName,
-                            file.FileNameWithoutExtension
-                            );
-                        bntx.Output(imagePath, BNTX.OutputMode.CreateFolderWhenMultiple);
-                    }
-                }
-
-                yield return outfolder;
-            }
-        }
-
-        if (false)
-        {
-            var files = DirectoryUtil.GetFiles(OriginalFolder, "*.arc");
-            foreach (var arcPath in files)
-            {
-                //var relpath = file.Replace(Root, "");
-                using var sarc = new SARC(arcPath.Path);
-                var outfolder = Path.Combine(
-                    output,
-                    "arc",
-                    arcPath.RelativeDirectoryName,
-                    arcPath.FileNameWithoutExtension
-                    );
-
-                foreach (var entry in sarc.Entries)
-                {
-                    if (entry.Name == "timg/__Combined.bntx")
-                    {
-                        var bntxPath = Path.Combine(
-                            output,
-                            arcPath.RelativeDirectoryName.Replace("romfs", "bntx_from_arc"),
-                            arcPath.FileNameWithoutExtension + ".bntx"
-                            );
-                        Directory.CreateDirectory(Path.GetDirectoryName(bntxPath));
-                        File.WriteAllBytes(bntxPath, entry.Data);
-                        yield return bntxPath;
-
-                        using var bntx = new BNTX(entry.Data);
-                        if (bntx.Name == null) continue;
-                        var imagePath = Path.Combine(
-                            output,
-                            arcPath.RelativeDirectoryName.Replace("romfs", "png_from_arc_bntx"),
-                            arcPath.FileNameWithoutExtension
-                            );
-                        bntx.Output(imagePath, BNTX.OutputMode.IgnoreFilename);
-                        yield return imagePath;
-                    }
-                    else if (entry.Name.Contains(".bntx"))
-                    {
-                        Debug.Assert(false);
-                    }
+                    using var bntx = new BNTX(entry.Data);
+                    if (bntx.Name == null) continue;
+                    var outfolder = Path.Combine(OutputFolder, "gfpak_png", file.RelativePart);
+                    bntx.Output(outfolder, BNTX.OutputMode.CreateFolderWhenMultiple);
+                    yield return outfolder;
                 }
             }
         }
+    }
 
-        if (false)
+    [Action]
+    public IEnumerable<string> ExtractAllBntx()
+    {
+        var files = DirectoryUtil.GetFiles(SourceFolder, "*.bntx");
+        foreach (var file in files)
         {
-            var files = DirectoryUtil.GetFiles(OriginalFolder, "*.bntx");
-            foreach (var bntxFileInfo in files)
-            {
-                using var bntx = new BNTX(bntxFileInfo.Path);
-                var outfolder = Path.Combine(
-                    output,
-                    bntxFileInfo.RelativeDirectoryName.Replace("romfs", "png_from_rom")
-                    );
+            var outfolder = Path.Combine(OutputFolder, "bntx_png", file.RelativePart);
+            using var bntx = new BNTX(file.FullPath);
+            bntx.Output(outfolder, BNTX.OutputMode.CreateFolderWhenMultiple);
+            yield return outfolder;
+        }
+    }
 
-                bntx.Output(outfolder, BNTX.OutputMode.CreateFolderWhenMultiple);
-                yield return outfolder;
+    [Action]
+    public IEnumerable<string> ExtractAllArc()
+    {
+        var files = DirectoryUtil.GetFiles(SourceFolder, "*.arc");
+        foreach (var arcPath in files)
+        {
+            using var sarc = new SARC(arcPath.FullPath);
+
+            foreach (var entry in sarc.AsEnumerable())
+            {
+                var path = Path.Combine(OutputFolder, "arc", arcPath.RelativePart);
+                Directory.CreateDirectory(path);
+                path = Path.Combine(path, entry.Name);
+                File.WriteAllBytes(path, entry.Data);
+            }
+            yield return arcPath.FullPath;
+        }
+    }
+
+    [Action]
+    public IEnumerable<string> ExtractAllPngInArc()
+    {
+        var files = DirectoryUtil.GetFiles(SourceFolder, "*.arc");
+        foreach (var arcPath in files)
+        {
+            using var sarc = new SARC(arcPath.FullPath);
+
+            foreach (var entry in sarc.AsEnumerable())
+            {
+                if (entry.Name == "timg/__Combined.bntx")
+                {
+                    using var bntx = new BNTX(entry.Data);
+                    if (bntx.Name == null) continue;
+                    var path = Path.Combine(OutputFolder, "arc_png", arcPath.RelativePart);
+                    bntx.Output(path, BNTX.OutputMode.IgnoreFilename);
+                    yield return path;
+                }
             }
         }
     }
 
-    protected Dictionary<string, MsgWrapper> MsgDictionaries;
-    protected MsgFormatter MsgFormatter;
-    protected virtual MsgWrapper GetPreviewMsgWrapper(object[] args)
-    {
-        return null;
-    }
 
-    public string GetPreviewString(params object[] args)
-    {
-        var name = (string)args[0];
-        var value = args[1];
 
-        MsgDictionaries ??= new();
-        MsgFormatter ??= new PokemonMsgFormatterV2();
-
-        if (!MsgDictionaries.ContainsKey(name))
-        {
-            MsgDictionaries.Add(name, GetPreviewMsgWrapper(args));
-        }
-
-        var mw = MsgDictionaries[name];
-        if (mw == null)
-        {
-            return "";
-        }
-
-        switch (value)
-        {
-            default:
-                {
-                    var index = int.Parse(value.ToString());
-                    return MsgFormatter.Format(mw[index][0], new());
-                }
-        }
-    }
-
-    protected class ItemReader : DataReader<byte[][]>
-    {
-        public int Offset { get; }
-        public int Size { get; }
-
-        public ItemReader(string path, int offset, int size) : base(path)
-        {
-            Offset = offset;
-            Size = size;
-        }
-
-        protected override byte[][] Open()
-        {
-            var path = Project.As<ExtendableProject>().GetPath(RelatedPath);
-            using var fs = File.OpenRead(path);
-            using var br = new BinaryReader(fs);
-            var num1 = br.ReadUInt16();
-            var num2 = br.ReadUInt16();
-            var num3 = br.ReadUInt16();
-            br.BaseStream.Seek(Offset, SeekOrigin.Begin);
-            var offset = br.ReadUInt32();
-            var indexes = Enumerable.Range(0, num1)
-                .Select(i => br.ReadUInt16())
-                .ToArray();
-            br.BaseStream.Seek(offset, SeekOrigin.Begin);
-            var data = Enumerable.Range(0, num3)
-                .Select(i => br.ReadBytes(Size))
-                .ToArray();
-            var data2 = indexes.Select(i => data[i]).ToArray();
-            return data2;
-        }
-    }
-
-    protected class MessageReader : DataReader<MultilingualCollection>
+    protected class MessageReader : DataReaderBase<MultilingualCollection>, IDataReader<PathInfo[], MultilingualCollection>
     {
         public Dictionary<string, string[]> LanguageMaps { get; set; }
 
-        public MessageReader(string path, Dictionary<string, string[]> langmap) : base(path)
+        public MessageReader(Dictionary<string, string[]> langmap)
         {
             LanguageMaps = langmap;
         }
 
-        protected override MultilingualCollection Open()
+        public MultilingualCollection Read(PathInfo[] files)
         {
-            var path = Project.As<ExtendableProject>().GetPath(RelatedPath);
             var mc = new MultilingualCollection
             {
-                Formatter = Project switch
-                {
-                    //PokemonProjectArceus => new ArceusMsgFormatter(),
-                    _ => new PokemonMsgFormatterV2(),
-                }
+                Formatter = new PokemonMsgFormatterV2(),
             };
 
-            foreach (var (foldername, langcodes) in LanguageMaps)
+            var langgroups = files.GroupBy(x => x.RelativePart.Split('/', '\\')[0]);
+
+            foreach (var langgroup in langgroups)
             {
-                var langpath = Path.Combine(path, foldername) + "\\";
-                var files = Directory.GetFiles(langpath, "*.dat", SearchOption.AllDirectories);
-                var wrappers = files.Select(x => new MsgWrapper(x, FileVersion.GenVIII)
-                {
-                    Group = foldername,
-                    LanguageCodes = langcodes,
-                    Name = x.Replace(langpath, "").Replace(".dat", "")
-                }).ToArray();
-                mc.Wrappers.Add(langcodes[0], wrappers);
+                if (!LanguageMaps.TryGetValue(langgroup.Key, out var langcodes)) continue;
+                var wrappers = langgroup
+                    .Where(x => x.FullPath.EndsWith(".dat"))
+                    .Select(x => new MsgWrapper(x.FullPath, FileVersion.GenVIII)
+                    {
+                        LanguageCodes = langcodes,
+                        Name = x.RelativePart.Replace(langgroup.Key + '\\', "").Replace(".dat", "")
+                    }).ToArray();
+                mc.Wrappers.Add(langgroup.Key, wrappers);
             }
 
             return mc;
         }
     }
+
 }

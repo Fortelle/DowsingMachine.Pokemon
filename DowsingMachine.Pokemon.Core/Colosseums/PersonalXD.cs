@@ -1,4 +1,7 @@
 ﻿using PBT.DowsingMachine.Data;
+using PBT.DowsingMachine.Pokemon.Common;
+using PBT.DowsingMachine.Projects;
+using Syroot.BinaryData;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Colosseums;
 
@@ -11,6 +14,7 @@ public class PersonalXD
     public byte Grow;
     public byte Get_rate;
     public byte Sex;
+    public byte _unknown04;
 
     public ushort Give_exp;
     public ushort Friend;
@@ -41,8 +45,10 @@ public class PersonalXD
     public byte Speabi1;
     public byte Speabi2;
 
-    [ArraySize(70)]
+    [ArraySize(58)]
     public byte[] Machines;
+    [ArraySize(12)]
+    public byte[] Tutors;
 
     public ushort Item1;
     public ushort Item2;
@@ -72,4 +78,58 @@ public class PersonalXD
 
     public byte Color;
     public ushort UnknownDexNumber2;
+}
+
+
+
+public struct DDPK
+{
+    public byte _unknown01;
+    public byte CatchRate;
+    public byte Level;
+    public byte _unknown04;
+
+    public ushort _empty05;
+    public ushort Index;
+
+    public ushort PurificationGauge;
+    public ushort _empty0A;
+
+    public ushort ShadowMove1;
+    public ushort ShadowMove2;
+
+    public ushort ShadowMove3;
+    public ushort ShadowMove4;
+
+    public byte _unknown14;
+    public byte _unknown15;
+    public byte _empty16;
+    public byte _empty17;
+}
+
+public struct DPKM
+{
+    [AsEnum(typeof(Monsname))]
+    public short Number;
+    public byte Level;
+    public byte Happiness;
+
+    public short Item;
+    public byte _unknown06;
+    public byte _unknown07;
+
+    [ArraySize(6)]
+    public byte[] IVs;
+    [ArraySize(6)]
+    public byte[] EVs;
+
+    public ushort Move1;
+    public ushort Move2;
+    public ushort Move3;
+    public ushort Move4;
+
+    public byte _unknown1C;
+    public byte _unknown1D;
+    public byte _unknown1E;
+    public byte _unknown1F;
 }

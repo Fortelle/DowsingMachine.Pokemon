@@ -1,14 +1,13 @@
 ﻿using GFMSG;
-using GFMSG.Pokemon;
 using PBT.DowsingMachine.Pokemon.Common;
-using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Projects;
-using PBT.DowsingMachine.Utilities;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen5;
 
 public class PokemonProjectV : PokemonProjectDS
 {
+    private record B2W2TutorMove(int Index, int Costs,int Order);
+    
     public static int DexPokemonCount = 649;
 
     public PokemonProjectV() : base()
@@ -19,123 +18,80 @@ public class PokemonProjectV : PokemonProjectDS
     {
         base.Configure();
 
-        AddReference("PersonalTable",
-            new NarcReader(@"root\a\0\1\6"),
-            data => data[..^1],
-            MarshalArray<Personal5>
-            );
-        AddReference("Wazaoboe",
-            new NarcReader(@"root\a\0\1\8"),
-            x => ParseEnumerable(x, ReadLevelupMoves)
-            );
-        /*
-        AddReference("common",
-            new NarcReader(@"root\a\0\0\2"),
-            x => x.Select(y => new PokemonText(y)).ToArray()
-            );
-        AddReference("script",
-            new NarcReader(@"root\a\0\0\3"),
-            x => x.Select(y => new PokemonText(y)).ToArray()
-            );
-        */
-        AddReference("msg",
-            new NarcReader(@"root\a\0\0\2"),
-            ReadMessage
-            );
-        AddReference("script",
-            new NarcReader(@"root\a\0\0\3"),
-            ReadMessage
-            );
+        Resources.Add(new DataResource("pokemon_personals")
+        {
+            Reference = new FileRef(@"root\a\0\1\6"),
+            Reader = new NarcReader()
+                .Then(data => data[..^1])
+                .Then(MarshalArray<Personal5>),
+        });
+        Resources.Add(new DataResource("pokemon_chihou_number")
+        {
+            Reference = new FileRef(@"root\a\0\1\6"),
+            Reader = new NarcReader()
+                .Then(data => data[^1])
+                .Then(MarshalTo<short>)
+        });
+        Resources.Add(new DataResource("pokemon_levelup_moves")
+        {
+            Reference = new FileRef(@"root\a\0\1\8"),
+            Reader = new NarcReader()
+                .Then(ParseEnumerable(ReadLevelupMoves)),
+        });
+        Resources.Add(new DataResource("msg")
+        {
+            Reference = new FileRef(@"root\a\0\0\2"),
+            Reader = new NarcReader()
+                .Then(ParseEnumerable(x => new MsgDataV2(x))),
+        });
+        Resources.Add(new DataResource("script")
+        {
+            Reference = new FileRef(@"root\a\0\0\3"),
+            Reader = new NarcReader()
+                .Then(ParseEnumerable(x => new MsgDataV2(x))),
+        });
 
         switch (Title)
         {
-            case GameTitle.Black:
-            case GameTitle.White:
-                AddReference("MachineList",
-                    new StreamBinaryReader(@"arm9.bin", 0x9A948),
-                    ReadTMHMList
-                    );
-                AddReference("EggMoves",
-                    new NarcReader(@"root\a\1\2\3"),
-                    x => ParseEnumerable(x, ReadEggMoves)
-                    );
+            case GameTitle.Black or GameTitle.White:
+                Resources.Add(new DataResource("pokemon_egg_moves")
+                {
+                    Reference = new FileRef(@"root\a\1\2\3"),
+                    Reader = new NarcReader()
+                        .Then(ParseEnumerable(ReadEggMoves)),
+                });
+                Resources.Add(new DataResource("tmhm_move_list")
+                {
+                    Reference = new FileRef(@"arm9.bin"),
+                    Reader = new FileReader(0x9A948)
+                        .Then(ReadTMHMList),
+                });
                 break;
-            case GameTitle.Black2:
-            case GameTitle.White2:
-                AddReference("MachineList",
-                    new StreamBinaryReader(@"arm9.bin", 0x8C8C0),
-                    ReadTMHMList
-                    );
-                AddReference("EggMoves",
-                    new NarcReader(@"root\a\1\2\4"),
-                    x => ParseEnumerable(x, ReadEggMoves)
-                    ); ;
-                AddReference("TutorMoveData",
-                    new OverlayReader(@"root\ftc\overlay9_5", 0x512DC),
-                    ReadTutorListB2W2
-                    );
+            case GameTitle.Black2 or GameTitle.White2:
+                Resources.Add(new DataResource("pokemon_egg_moves")
+                {
+                    Reference = new FileRef(@"root\a\1\2\4"),
+                    Reader = new NarcReader()
+                        .Then(ParseEnumerable(ReadEggMoves)),
+                });
+                Resources.Add(new DataResource("tmhm_move_list")
+                {
+                    Reference = new FileRef(@"arm9.bin"),
+                    Reader = new FileReader(0x8C8C0)
+                        .Then(ReadTMHMList),
+                });
+                Resources.Add(new DataResource("tutor_move_data")
+                {
+                    Reference = new FileRef(@"root\ftc\overlay9_5"),
+                    Reader = new OverlayReader(0x512DC)
+                        .Then(ReadTutorListB2W2),
+                });
                 break;
         }
-
-    }
-
-    public new MultilingualCollection ReadMessage(byte[][] narcData)
-    {
-        var mc = new MultilingualCollection
-        {
-            Formatter = new BwMsgFormatter(),
-        };
-
-        var wrappers = narcData.Select((data, i) =>
-        {
-            var msg = new MsgDataV2(data);
-            var mw = new MsgWrapper(msg, i.ToString(), FileVersion.GenV, new[] { LanguageCode });
-            return mw;
-        }).ToArray();
-
-        mc.Wrappers.Add(LanguageCode, wrappers);
-        return mc;
     }
 
 
-    public class B2W2TutorMove
-    {
-        public int Index;
-        public int Costs;
-        public int Order;
-    }
-
-    public static B2W2TutorMove[] ReadTutorListB2W2(BinaryReader br)
-    {
-        var list = new List<B2W2TutorMove>();
-        for (var i = 0; i < 60; i++)
-        {
-            list.Add(new B2W2TutorMove()
-            {
-                Index = br.ReadInt32(),
-                Costs = br.ReadInt32(),
-                Order = br.ReadInt32(),
-            });
-        }
-        return list.ToArray();
-    }
-
-    public static int[] ReadEggMoves(BinaryReader br)
-    {
-        var list = new List<int>();
-        if (br.BaseStream.Length > 0)
-        {
-            var count = br.ReadInt16();
-            for (var i = 0; i < count; i++)
-            {
-                list.Add(br.ReadInt16());
-            }
-        }
-
-        return list.ToArray();
-    }
-
-    public static LevelupMove[] ReadLevelupMoves(BinaryReader br)
+    private LevelupMove[] ReadLevelupMoves(BinaryReader br)
     {
         var list = new List<LevelupMove>();
         while (true)
@@ -148,7 +104,7 @@ public class PokemonProjectV : PokemonProjectDS
         return list.ToArray();
     }
 
-    public static int[] ReadTMHMList(BinaryReader br)
+    private int[] ReadTMHMList(BinaryReader br)
     {
         var list = new List<int>();
         while (true)
@@ -160,10 +116,68 @@ public class PokemonProjectV : PokemonProjectDS
         return list.ToArray();
     }
 
-    [Test]
-    public PokemonId[] GetPokemonIds()
+    private int[] ReadEggMoves(BinaryReader br)
     {
-        var personals = GetData<Personal5[]>("PersonalTable");
+        var list = new List<int>();
+        if (br.BaseStream.Length > 0)
+        {
+            var count = br.ReadInt16();
+            for (var i = 0; i < count; i++)
+            {
+                list.Add(br.ReadInt16());
+            }
+        }
+        return list.ToArray();
+    }
+
+    private static B2W2TutorMove[] ReadTutorListB2W2(BinaryReader br)
+    {
+        var list = new List<B2W2TutorMove>();
+        for (var i = 0; i < 60; i++)
+        {
+            list.Add(new B2W2TutorMove(
+                br.ReadInt32(),
+                br.ReadInt32(),
+                br.ReadInt32()
+                ));
+        }
+        return list.ToArray();
+    }
+
+    [Data]
+    public MultilingualCollection DumpMessage()
+    {
+        var langcodes = Language switch
+        {
+            "jpn" => new[] { "ja-Hrkt", "ja-Jpan" },
+            "eng" => new[] { "en-US" },
+            "fra" => new[] { "fr" },
+            "ita" => new[] { "it" },
+            "ger" => new[] { "de" },
+            "spa" => new[] { "es" },
+            "kor" => new[] { "ko" },
+            _ => new[] { "" }
+        };
+
+        var msg = GetData<MsgDataV2[]>("msg");
+        var script = GetData<MsgDataV2[]>("script");
+
+        var msgwrappers = msg.Select((x, i) => new MsgWrapper(x, $"msg\\{i}", FileVersion.GenV, langcodes));
+        var scriptwrappers = script.Select((x, i) => new MsgWrapper(x, $"script\\{i}", FileVersion.GenV, langcodes));
+
+        var mc = new MultilingualCollection
+        {
+            Formatter = new GFMSG.Pokemon.BwMsgFormatter(),
+        };
+        mc.Wrappers.Add(Language ?? "", msgwrappers.Concat(scriptwrappers).ToArray());
+        return mc;
+    }
+
+
+    [Test]
+    public (PokemonId, Personal5)[] GetKeyedPersonals()
+    {
+        var personals = GetData<Personal5[]>("pokemon_personals");
         var ids = Enumerable.Repeat(PokemonId.Empty, personals.Length).ToArray();
         for (var i = 0; i <= DexPokemonCount; i++)
         {
@@ -177,74 +191,45 @@ public class PokemonProjectV : PokemonProjectDS
                 }
             }
         }
-        return ids.ToArray();
+        return ids.Zip(personals, (x, y) => (x, y)).ToArray();
     }
 
-    [Test]
-    public bool[][] GetPokemonTm()
+    [Data("learnsets/")]
+    public LearnsetTableCollection DumpLearnsets()
     {
-        var tm = GetData<Personal5[]>("PersonalTable").Select(x => PokemonUtils.ToBooleans(x.Machine1, x.Machine2, x.Machine3, x.Machine4));
-        return tm.ToArray();
-    }
+        var personals = GetKeyedPersonals();
+        var levelup = GetData<LevelupMove[][]>("pokemon_levelup_moves");
+        var tmlist = GetData<int[]>("tmhm_move_list");
+        var eggs = GetData<int[][]>("pokemon_egg_moves");
 
-    [Extraction]
-    public string ExtractPersonal()
-    {
-        var personal = GetData<Personal5[]>("PersonalTable");
-        var path = Path.Combine(OutputFolder, $"personal.json");
-        JsonUtil.Serialize(path, personal);
-        return path;
-    }
-
-    [Extraction]
-    public IEnumerable<string> ExtractLearnset()
-    {
-        Directory.CreateDirectory(OutputFolder);
-
-        var suffix = Game.Title switch
-        {
-            GameTitle.Black or GameTitle.White => "blackwhite",
-            GameTitle.Black2 or GameTitle.White2 => "black2white2",
-        };
-        var personals = GetData<Personal5[]>("PersonalTable");
-        var dexNumbers = GetPokemonIds();
-        var format = "{0:000}.{1:00}";
+        var collection = new LearnsetTableCollection("{0:000}.{1:00}");
 
         {
             var lt = new LearnsetTable();
-            var moves = GetData<LevelupMove[][]>("Wazaoboe");
-            for (var i = 0; i < moves.Length; i++)
+            for (var i = 0; i < levelup.Length; i++)
             {
-                var data = moves[i].Select(x => $"{x.Move}:{x.Level}");
-                lt.Add(dexNumbers[i], data.ToArray());
+                var data = levelup[i].Select(x => $"{x.Move}:{x.Level}");
+                lt.Add(personals[i].Item1, data.ToArray());
             }
-            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
-            lt.Save(path, format);
-            yield return path;
+            collection.Add("levelup", lt);
         }
 
         {
             var lt = new LearnsetTable();
-            var tmlist = GetData<int[]>("MachineList");
             var tmlist2 = tmlist[0..92].Concat(tmlist[98..]).Concat(tmlist[92..98]).ToArray();
 
-            for (var i = 0; i < personals.Length; i++)
+            foreach (var (id, personal) in personals)
             {
-                var tm = PokemonUtils.ToBooleans(personals[i].Machine1, personals[i].Machine2, personals[i].Machine3, personals[i].Machine4);
-                var data = PokemonUtils.MatchFlags(tmlist2, tm, (x, j) => j switch
+                var flags = new FlagArray(personal.Machine1, personal.Machine2, personal.Machine3, personal.Machine4);
+                var data = flags.OfTrue(tmlist, (m, j) => j switch
                 {
-                    < 95 => $"{x}:TM{j + 1:00}",
-                    _ => $"{x}:HM{j - 94:00}",
+                    < 92 => $"{m}:TM{j + 1:00}",
+                    < 98 => $"{m}:HM{j - 92 + 1:00}",
+                    _ => $"{m}:TM{j - 6 + 1:00}",
                 });
-                lt.Add(dexNumbers[i], data);
+                lt.Add(id, data);
             }
-            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
-            lt.Save(path, format);
-            yield return path;
-
-            var path2 = Path.Combine(OutputFolder, $"{suffix}.tmlist.json");
-            JsonUtil.Serialize(path2, tmlist);
-            yield return path2;
+            collection.Add("tm", lt);
         }
 
         {
@@ -259,65 +244,52 @@ public class PokemonProjectV : PokemonProjectDS
                 0x01B2,
             };
 
-            for (var i = 0; i < personals.Length; i++)
+            foreach (var (id, personal) in personals)
             {
-                var tm = PokemonUtils.ToBooleans(personals[i].Tutor);
-                var data = PokemonUtils.MatchFlags(tutorlist, tm);
-                lt.Add(dexNumbers[i], data);
+                var flags = new FlagArray(personal.Tutor);
+                var data = flags.OfTrue(tutorlist);
+                lt.Add(id, data);
             }
-            var path = Path.Combine(OutputFolder, $"{suffix}.tutor_ult.txt");
-            lt.Save(path, format);
-            yield return path;
-
-            var path2 = Path.Combine(OutputFolder, $"{suffix}.tutorultlist.json");
-            JsonUtil.Serialize(path2, tutorlist);
-            yield return path2;
+            collection.Add("tutor_ult", lt);
         }
 
         if (Game.Title is GameTitle.Black2 or GameTitle.White2)
         {
+            var trlist = GetData<B2W2TutorMove[]>("tutor_move_list");
+            var tutorlist2 = trlist.Select(x => x.Index).ToArray();
+            var tutorlists2 = new[] {
+                tutorlist2[13..28],
+                tutorlist2[43..],
+                tutorlist2[0..13],
+                tutorlist2[28..43],
+            };
+
             var lt = new LearnsetTable();
-            var secBegin = new int[] { 13, 43, 0, 28 };
-            var tutorlist = GetData<B2W2TutorMove[]>("TutorMoveData").Select(x => x.Index).ToArray();
 
-            for (var i = 0; i < personals.Length; i++)
+            foreach (var (id, personal) in personals)
             {
-                var tutorArray = new[] { personals[i].Tutor1, personals[i].Tutor2, personals[i].Tutor3, personals[i].Tutor4 };
-                var data = tutorArray.SelectMany((x, j) =>
-                {
-                    var flags = PokemonUtils.ToBooleans(x);
-                    var tutorlist2 = tutorlist[Range.StartAt(secBegin[j])];
-                    var d = PokemonUtils.MatchFlags(tutorlist2, flags); //, (y, k) => $"{y}:{j}"
-                    return d;
-                }).ToArray();
-
-                lt.Add(dexNumbers[i], data);
+                var data = new[] {
+                    personal.Tutor1,
+                    personal.Tutor2,
+                    personal.Tutor3,
+                    personal.Tutor4
+                }
+                .Select(x => new FlagArray(x))
+                .Zip(tutorlists2, (flags, list) => flags.OfTrue(list))
+                .SelectMany(x => x)
+                .ToArray();
+                lt.Add(id, data);
             }
-            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
-            lt.Save(path, format);
-            yield return path;
-
-            var path2 = Path.Combine(OutputFolder, $"{suffix}.tutorultlist.json");
-            JsonUtil.Serialize(path2, tutorlist);
-            yield return path2;
+            collection.Add("tutor", lt);
         }
 
         {
             var lt = new LearnsetTable();
-            var eggs = GetData<int[][]>("EggMoves");
-
             for (var i = 0; i < eggs.Length; i++)
             {
-                lt.Add(dexNumbers[i], eggs[i]);
+                lt.Add(personals[i].Item1, eggs[i]);
             }
-
-            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
-            lt.Save(path, format);
-            yield return path;
-
-            var path2 = Path.Combine(OutputFolder, $"{suffix}.tamagowaza.json");
-            JsonUtil.Serialize(path2, eggs);
-            yield return path2;
+            collection.Add("egg", lt);
         }
 
         {
@@ -337,9 +309,9 @@ public class PokemonProjectV : PokemonProjectDS
                 lt.Add(new PokemonId(646, 1), 554, 558);
                 lt.Add(new PokemonId(646, 2), 553, 559);
             }
-            var path = Path.Combine(OutputFolder, $"{suffix}.special.txt");
-            lt.Save(path, format);
-            yield return path;
+            collection.Add("special", lt);
         }
+
+        return collection;
     }
 }

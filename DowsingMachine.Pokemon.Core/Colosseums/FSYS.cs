@@ -1,24 +1,21 @@
 ﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Projects;
 using System.Diagnostics;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Colosseums;
 
-public class FSYS : ICollectionArchive<byte[]>, ILargeArchive
+public class FSYS : ICollectionArchive<string, byte[]>, IDisposable
 {
     public const string Magic = "FSYS";
-
-    public IEnumerable<Entry<byte[]>> Archive { get; set; }
-    public int Count() => (int)Header.NumberOfEntries;
 
     private FsysHeader Header;
     private List<FsysInfo> Info;
     private List<string> Filenames;
 
-    private Stream Stream { get; set; }
     private BinaryReaderEx Reader { get; set; }
 
-    public IEnumerable<Entry<byte[]>> Entries => throw new NotImplementedException();
+    public int Count => (int)Header.NumberOfEntries;
+
+    public string[] Keys => Filenames.ToArray();
 
     public FSYS() { }
     public FSYS(string path) => Open(path);
@@ -26,31 +23,20 @@ public class FSYS : ICollectionArchive<byte[]>, ILargeArchive
 
     public void Open(string path)
     {
-        Stream = File.OpenRead(path);
-        Reader = new BinaryReaderEx(Stream) { IsBigEndian = true };
+        Reader = new BinaryReaderEx(File.OpenRead(path)) { IsBigEndian = true };
 
         Load(Reader);
     }
 
     public void Open(byte[] data)
     {
-        Stream = new MemoryStream(data);
-        Reader = new BinaryReaderEx(Stream) { IsBigEndian = true };
-
-        Load(Reader);
-    }
-
-    public void Open(Stream stream)
-    {
-        Stream = stream;
-        Reader = new BinaryReaderEx(stream) { IsBigEndian = true };
+        Reader = new BinaryReaderEx(new MemoryStream(data)) { IsBigEndian = true };
 
         Load(Reader);
     }
 
     public void Dispose()
     {
-        Stream?.Dispose();
         Reader?.Dispose();
     }
 
@@ -123,6 +109,15 @@ public class FSYS : ICollectionArchive<byte[]>, ILargeArchive
         }
     }
 
+    public IEnumerable<Entry<byte[]>> AsEnumerable()
+    {
+        for(var i = 0; i < Count; i++)
+        {
+            yield return new Entry<byte[]>(this[i], Filenames[i], i);
+        }
+    }
+
+
     //LZSS
     private static void Decode(Stream inputStream, int length, Stream outputStream)
     {
@@ -175,6 +170,7 @@ public class FSYS : ICollectionArchive<byte[]>, ILargeArchive
             flags >>= 1;
         }
     }
+
 
     private class FsysHeader
     {

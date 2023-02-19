@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
+﻿namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
 public class GFB
 {

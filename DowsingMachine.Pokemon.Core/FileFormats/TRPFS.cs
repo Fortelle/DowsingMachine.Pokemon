@@ -1,24 +1,34 @@
 ﻿using FlatSharp.Attributes;
 using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats.FlatBuffers;
-using PBT.DowsingMachine.Projects;
 using PBT.DowsingMachine.Utilities.Codecs;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
-public class TRPFS : ICollectionArchive<byte[]>, ILargeArchive
+public class TRPFS : ICollectionArchive<ulong, byte[]>, IDisposable
 {
     public const string Magic = "ONEPACK"; // 0x004b4341_50454E4F
 
     public TrpfsHeader Header { get; set; }
     public TrpfsInfo Info { get; set; }
 
+    private BinaryReader Reader { get; set; }
+
     public byte[] this[int index] => GetData(index);
     public byte[] this[ulong hash] => GetData(Array.BinarySearch(Info.Hashes, hash));
     public byte[] this[string name] => GetData(Array.BinarySearch(Info.Hashes, FnvHash.Fnv1a_64(name)));
 
-    private Stream Stream { get; set; }
-    private BinaryReader Reader { get; set; }
+    public int Count => Info.Offsets.Length;
+
+    public ulong[] Keys => Info.Hashes;
+
+    public IEnumerable<Entry<byte[]>> AsEnumerable()
+    {
+        for (var i = 0; i < Info.Offsets.Length; i++)
+        {
+            yield return new Entry<byte[]>(GetData(i), $"{Info.Hashes[i]:X8}", i);
+        }
+    }
 
     public TRPFS()
     {
@@ -28,38 +38,18 @@ public class TRPFS : ICollectionArchive<byte[]>, ILargeArchive
 
     public void Open(string path)
     {
-        Stream = File.OpenRead(path);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(File.OpenRead(path));
 
         Load(Reader);
     }
 
     public void Open(byte[] data)
     {
-        Stream = new MemoryStream(data);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(new MemoryStream(data));
 
         Load(Reader);
     }
 
-    public void Open(Stream stream)
-    {
-        Stream = stream;
-        Reader = new BinaryReader(stream);
-
-        Load(Reader);
-    }
-
-    public IEnumerable<Entry<byte[]>> Entries
-    {
-        get
-        {
-            for(var i = 0; i < Info.Offsets.Length; i++)
-            {
-                yield return new Entry<byte[]>(GetData(i), i);
-            }
-        }
-    }
 
     private byte[] GetData(int index)
     {
@@ -95,9 +85,11 @@ public class TRPFS : ICollectionArchive<byte[]>, ILargeArchive
 
     public void Dispose()
     {
-        Stream?.Dispose();
         Reader?.Dispose();
     }
+
+
+
 
     public class TrpfsHeader
     {

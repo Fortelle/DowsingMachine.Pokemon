@@ -1,18 +1,131 @@
-﻿using PBT.DowsingMachine.Data;
+﻿using GFMSG;
+using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Common;
+using PBT.DowsingMachine.Pokemon.Core.Gen8;
 using PBT.DowsingMachine.Projects;
-using PBT.DowsingMachine.Utilities;
+using System.ComponentModel;
+using System.Text;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen1;
 
 public class PokemonProjectI : FileProject, IPokemonProject
 {
     [Option]
+    [TypeConverter(typeof(EnumSelectConverter))]
+    [Select(GameTitle.Red, GameTitle.Green, GameTitle.Blue, GameTitle.Yellow, GameTitle.RedVC, GameTitle.GreenVC, GameTitle.BlueVC, GameTitle.YellowVC)]
     public GameTitle Title { get; set; }
 
     public GameInfo Game { get; set; }
 
     public const int InternalPokemonCount = 0xBE;
+
+    public PokemonProjectI() : base()
+    {
+    }
+
+    public override void Configure()
+    {
+        base.Configure();
+
+        ((IPokemonProject)this).Set(Title);
+
+        var positions = new
+        {
+            tmhm_move_list = 0u,
+            pokemon_evolution_table = 0u,
+            pokemon_dex_number = 0u,
+            pokemon_personal_150 = 0u,
+            pokemon_personal_mew = 0u,
+            pokemon_personal_151 = 0u,
+        };
+
+        switch (Title)
+        {
+            case GameTitle.Red:
+            case GameTitle.Green:
+            case GameTitle.Blue:
+                positions = positions with
+                {
+                    tmhm_move_list = 0x12276,
+                    pokemon_evolution_table = 0x3B427,
+                    pokemon_dex_number = 0x4279A,
+                    pokemon_personal_150 = 0x38000,
+                    pokemon_personal_mew = 0x4200,
+                };
+                break;
+            case GameTitle.Yellow:
+                positions = positions with
+                {
+                    tmhm_move_list = 0x1286C,
+                    pokemon_evolution_table = 0x3B59C,
+                    pokemon_dex_number = 0x4282D,
+                    pokemon_personal_151 = 0x383DE,
+                };
+                break;
+            case GameTitle.RedVC:
+            case GameTitle.BlueVC:
+                positions = positions with
+                {
+                    tmhm_move_list = 0x13773,
+                    pokemon_evolution_table = 0x3B05C,
+                    pokemon_dex_number = 0x41024,
+                    pokemon_personal_150 = 0x383DE,
+                    pokemon_personal_mew = 0x425B,
+                };
+                break;
+        }
+
+        if (IsRGB)
+        {
+            Resources.Add(new DataResource("pokemon_personal_150")
+            {
+                Reference = new PosRef(positions.pokemon_personal_150),
+                Reader = new DataReader<BinaryReader>()
+                    .Then(br => br.ReadByteMatrix(28, 150))
+                    .Then(MarshalArray<Personal1>)
+            });
+            Resources.Add(new DataResource("pokemon_personal_mew")
+            {
+                Reference = new PosRef(positions.pokemon_personal_mew),
+                Reader = new DataReader<BinaryReader>()
+                    .Then(br => br.ReadByteMatrix(28, 1))
+                    .Then(MarshalArray<Personal1>)
+            });
+        }
+        else
+        {
+            Resources.Add(new DataResource("pokemon_personal_151")
+            {
+                Reference = new PosRef(positions.pokemon_personal_151),
+                Reader = new DataReader<BinaryReader>()
+                    .Then(br => br.ReadByteMatrix(28, 151))
+                    .Then(MarshalArray<Personal1>)
+            });
+        }
+
+        // 0-49 for tm, 50-54 for hm
+        Resources.Add(new DataResource("tmhm_move_list")
+        {
+            Reference = new PosRef(positions.tmhm_move_list),
+            Reader = new DataReader<BinaryReader>()
+                .Then(br => br.ReadBytes(55))
+                .Then(bytes => bytes.ToIntegers())
+        });
+        Resources.Add(new DataResource("pokemon_evolution_table")
+        {
+            Reference = new PosRef(positions.pokemon_evolution_table),
+            Reader = new DataReader<BinaryReader>()
+                .Then(ReadPokemonEvolutions)
+        });
+        Resources.Add(new DataResource("pokemon_dex_number")
+        {
+            Reference = new PosRef(positions.pokemon_dex_number),
+            Reader = new DataReader<BinaryReader>()
+                .Then(br => br.ReadBytes(InternalPokemonCount))
+                .Then(bytes => bytes.ToIntegers())
+        });
+
+    }
 
     public bool IsRGB => Title is GameTitle.Red
         or GameTitle.Green
@@ -26,69 +139,10 @@ public class PokemonProjectI : FileProject, IPokemonProject
         or GameTitle.GreenVC
         or GameTitle.YellowVC;
 
-    public PokemonProjectI() : base()
+
+    private static Evolution[] ReadPokemonEvolutions(BinaryReader br)
     {
-    }
-
-    public override void Configure()
-    {
-        base.Configure();
-
-        ((IPokemonProject)this).Set(Title);
-
-        switch (Title)
-        {
-            case GameTitle.Red:
-            case GameTitle.Green:
-            case GameTitle.Blue:
-                AddReference("PersonalMew", new SingleReader(0x4200), ReadPokemon(1));
-                AddReference("PersonalTable", new SingleReader(0x38000), ReadPokemon(150));
-                AddReference("TMHMList", new SingleReader(0x12276), ReadTMHMList);
-                AddReference("EvolutionTable", new SingleReader(0x3B427), ReadEvolution);
-                AddReference("DexOrder", new SingleReader(0x4279A), br => br.ReadBytes(InternalPokemonCount));
-                break;
-            case GameTitle.Yellow:
-                AddReference("PersonalTable", new SingleReader(0x383DE), ReadPokemon(151));
-                AddReference("TMHMList", new SingleReader(0x1286C), ReadTMHMList);
-                AddReference("DexOrder", new SingleReader(0x4282D), br => br.ReadBytes(InternalPokemonCount));
-                AddReference("EvolutionTable", new SingleReader(0x3B59C), ReadEvolution);
-                break;
-            case GameTitle.RedVC:
-            case GameTitle.BlueVC:
-                AddReference("PersonalMew", new SingleReader(0x425B), ReadPokemon(1));
-                AddReference("PersonalTable", new SingleReader(0x383DE), ReadPokemon(150));
-                AddReference("TMHMList", new SingleReader(0x13773), ReadTMHMList);
-                AddReference("EvolutionTable", new SingleReader(0x3B05C), ReadEvolution);
-                AddReference("DexOrder", new SingleReader(0x41024), br => br.ReadBytes(InternalPokemonCount));
-                break;
-        }
-    }
-
-    public static Func<BinaryReader, Personal1[]> ReadPokemon(int count)
-    {
-        return br => Enumerable.Range(0, count)
-            .Select(_ => br.ReadBytes(28))
-            .Select(x => MarshalUtil.Deserialize<Personal1>(x))
-            .ToArray();
-    }
-
-    public Personal1[] GetPokemon()
-    {
-        if (IsRGB)
-        {
-            return GetData<Personal1[]>("PersonalTable")
-                .Concat(GetData<Personal1[]>("PersonalMew"))
-                .ToArray();
-        }
-        else
-        {
-            return GetData<Personal1[]>("PersonalTable").ToArray();
-        }
-    }
-
-    public Evolution[] ReadEvolution(BinaryReader br)
-    {
-        var offsets = Enumerable.Range(0, InternalPokemonCount).Select(_ => br.ReadInt16()).ToArray();
+        var offsets = br.ReadUShorts(InternalPokemonCount);
 
         var list = new List<Evolution>();
         foreach (var offset in offsets)
@@ -138,102 +192,85 @@ public class PokemonProjectI : FileProject, IPokemonProject
         return list.ToArray();
     }
 
-    public static int[] ReadTMHMList(BinaryReader br)
+    [Test]
+    public (PokemonId, Personal1)[] GetKeyedPersonals()
     {
-        // 0-49 for tm, 50-54 for hm
-        return br.ReadBytes(55).Select(x => (int)x).ToArray();
+        var personals = IsRGB
+            ? GetData<Personal1[]>("pokemon_personal_150").Concat(GetData<Personal1[]>("pokemon_personal_mew"))
+            : GetData<Personal1[]>("pokemon_personal_151");
+        return personals
+            .Select((x, i) => (new PokemonId(x.OldNumber), x))
+            .ToArray();
     }
 
-    [Dump]
-    public string DumpData()
+    [Data(@"learnsets/")]
+    public LearnsetTableCollection DumpLearnsets()
     {
-        var personal = GetPokemon();
+        var personals = GetKeyedPersonals();
+        var tmhmlist = GetData<int[]>("tmhm_move_list");
+        var evo = GetData<Evolution[]>("pokemon_evolution_table");
+        var dexNumbers = GetData<int[]>("pokemon_dex_number");
 
-        var path = Path.Combine(OutputFolder, $"personal.json");
-        JsonUtil.Serialize(path, personal);
-        return path;
-    }
+        var collection = new LearnsetTableCollection(@"{0:000}");
 
-    [Dump]
-    public IEnumerable<string> DumpLearnset()
-    {
-        var personals = GetPokemon();
-        var dexNumbers = GetData<byte[]>("DexOrder");
-        var suffix = Game.Title switch
-        {
-            GameTitle.Red => "redgreen",
-            GameTitle.Green => "redgreen",
-            GameTitle.Blue => "redgreen",
-            GameTitle.Yellow => "yellow",
-            GameTitle.RedVC => "redgreenvc",
-            GameTitle.BlueVC => "redgreenvc",
-            GameTitle.YellowVC => "yellowvc",
-        };
-        var format = "{0:000}";
-
-        // basic
         {
             var lt = new LearnsetTable();
-            for (var i = 0; i < personals.Length; i++)
+            foreach (var (id, personal) in personals)
             {
-                var data = new int[] { personals[i].Skill1, personals[i].Skill2, personals[i].Skill3, personals[i].Skill4 };
-                lt.Add(new PokemonId(personals[i].OldNumber), data);
+                var data = new int[] { personal.Skill1, personal.Skill2, personal.Skill3, personal.Skill4 }.Where(x => x > 0).ToArray();
+                lt.Add(id, data);
             }
-            var path = Path.Combine(OutputFolder, "txt", $"{suffix}.basic.txt");
-            lt.Save(path, format);
-            yield return path;
-
-            path = Path.Combine(OutputFolder, "json", $"{suffix}.basic.json");
-            lt.SaveJson(path, false, false);
-            yield return path;
+            collection.Add("basic", lt);
         }
 
-        // levelup
         {
             var lt = new LearnsetTable();
-            var evo = GetData<Evolution[]>("EvolutionTable");
-            for (var i = 0; i < InternalPokemonCount; i++)
+            for (var i = 0; i < evo.Length; i++)
             {
                 var data = evo[i].Moves.Select(x => $"{x.Move}:{x.Level}").ToArray();
                 lt.Add(new PokemonId(dexNumbers[i]), data);
             }
-            var path = Path.Combine(OutputFolder, "txt", $"{suffix}.levelup.txt");
-            lt.Save(path, format);
-            yield return path;
-
-            path = Path.Combine(OutputFolder, "json", $"{suffix}.levelup.json");
-            lt.SaveJson(path, false, true);
-            yield return path;
-
-            path = Path.Combine(OutputFolder, $"{suffix}.levelup.json");
-            JsonUtil.Serialize(path, evo.Select(x => x.Moves));
-            yield return path;
+            collection.Add("levelup", lt);
         }
 
-        // tmhm
         {
             var lt = new LearnsetTable();
-            var tmlist = GetData<int[]>("TMHMList");
-            for (var i = 0; i < personals.Length; i++)
+            foreach (var (id, personal) in personals)
             {
-                var tm = PokemonUtils.ToBooleans(personals[i].Machine1, personals[i].Machine2)
-                    .Take(tmlist.Length).ToArray()
-                    ;
-                var data = PokemonUtils.MatchFlags(tmlist, tm, (m, j) => j < 50 ? $"{m}:TM{j + 1:00}" : $"{m}:HM{j - 49:00}");
-                lt.Add(new PokemonId(personals[i].OldNumber), data);
+                var fa = new FlagArray(personal.Machine1, personal.Machine2);
+                var data = fa.OfTrue(tmhmlist, (m, j) => j < 50 ? $"{m}:TM{j + 1:00}" : $"{m}:HM{j - 49:00}");
+                lt.Add(id, data);
             }
-            var path = Path.Combine(OutputFolder, "txt", $"{suffix}.tm.txt");
-            lt.Save(path, format);
-            yield return path;
-
-            path = Path.Combine(OutputFolder, "json", $"{suffix}.tm.json");
-            lt.SaveJson(path, false, true);
-            yield return path;
-
-            path = Path.Combine(OutputFolder, $"{suffix}.tm.json");
-            JsonUtil.Serialize(path, tmlist);
-            yield return path;
+            collection.Add("tm", lt);
         }
 
+        return collection;
     }
+
+    [Action]
+    [Title(GameTitle.Yellow)]
+    public string CompareWithRGB()
+    {
+        using var rgb = DowsingMachineApp.FindProject<PokemonProjectI>(s => s
+            .OfType<PokemonProjectI>()
+            .Where(x => x != this && x.IsRGB)
+            .MaxBy(x => x.Title)
+            );
+
+        var sb = new StringBuilder();
+
+        {
+            var ltcY = DumpLearnsets();
+            var ltcRGB = rgb.DumpLearnsets();
+            var diffs = ltcY.CompareWith(ltcRGB);
+            foreach (var diff in diffs)
+            {
+                sb.AppendLine($"No.{diff.Pokemon.Number:000} {(Monsname)diff.Pokemon.Number}");
+                sb.AppendLine(diff.ToText());
+            }
+        }
+
+        return sb.ToString();
+    }
+
 }

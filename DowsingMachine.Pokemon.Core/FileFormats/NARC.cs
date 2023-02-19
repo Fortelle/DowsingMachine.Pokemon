@@ -1,5 +1,4 @@
 ﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Projects;
 using System.Diagnostics;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
@@ -7,7 +6,7 @@ namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 // Nitro ARChive
 // https://github.com/HiroTDK/EditorNDS/blob/4df7b2b5a7bb9a6bffe419d33f61b3e1c3b71384/ROM%20Editor/FileHandlers/01%20NitroFiles/06%20NitroArchive.cs
 // https://github.com/KillzXGaming/Switch-Toolbox/blob/12dfbaadafb1ebcd2e07d239361039a8d05df3f7/File_Format_Library/FileFormats/Archives/NARC.cs
-public class NARC : ICollectionArchive<byte[]>, ILargeArchive
+public class NARC : ICollectionArchive<byte[]>, IDisposable
 {
     public const string Magic = "NARC"; // 0x4E415243
 
@@ -19,35 +18,34 @@ public class NARC : ICollectionArchive<byte[]>, ILargeArchive
     public long DataOffset;
 
     public byte[] this[int index] => GetData(index);
-    public byte[] this[string name] => throw new NotImplementedException();
-    public IEnumerable<Entry<byte[]>> Entries => Enumerable.Range(0, Fatb.Count).Select(i => new Entry<byte[]>(this[i], i));
+    public int Count => Fatb.Count;
+    public IEnumerable<Entry<byte[]>> AsEnumerable() => Enumerable.Range(0, Count).Select(i => new Entry<byte[]>(this[i], i));
 
-    private Stream Stream { get; set; }
     private BinaryReader Reader { get; set; }
 
     public NARC()
     {
     }
 
+    public NARC(string path) => Open(path);
+    public NARC(byte[] data) => Open(data);
+
     public void Open(string path)
     {
-        Stream = File.OpenRead(path);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(File.OpenRead(path));
 
         Load(Reader);
     }
 
     public void Open(byte[] data)
     {
-        Stream = new MemoryStream(data);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(new MemoryStream(data));
 
         Load(Reader);
     }
 
     public void Open(Stream stream)
     {
-        Stream = stream;
         Reader = new BinaryReader(stream);
 
         Load(Reader);
@@ -56,7 +54,6 @@ public class NARC : ICollectionArchive<byte[]>, ILargeArchive
     public void Dispose()
     {
         Reader?.Dispose();
-        Stream?.Dispose();
     }
 
     protected void Load(BinaryReader br)
@@ -78,6 +75,7 @@ public class NARC : ICollectionArchive<byte[]>, ILargeArchive
         var data = Reader.ReadBytes((int)length);
         return data;
     }
+
 
     private class NarcHeader
     {
@@ -204,7 +202,7 @@ public class NARC : ICollectionArchive<byte[]>, ILargeArchive
 
     }
 
-    private struct FIMG // File IMaGe
+    private class FIMG // File IMaGe
     {
         public char[] Signature;
         public uint Size;

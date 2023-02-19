@@ -1,5 +1,6 @@
 ﻿using FlatSharp.Attributes;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats.FlatBuffers;
+using PBT.DowsingMachine.Utilities.Codecs;
 using SoulsFormats;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
@@ -11,25 +12,8 @@ public class Trpak
     [FlatBufferItem(1)] public TrpakEntry[] Entries { get; set; }
 
     public byte[] this[int index] => GetData(index);
-    public byte[] this[ulong hash] => GetData(Array.IndexOf(Hashes, hash));
-
-    public void Open(string path)
-    {
-        var data = File.ReadAllBytes(path);
-        Open(data);
-    }
-
-    public void Open(byte[] data)
-    {
-        var trpak = FlatBufferConverter.DeserializeFrom<Trpak>(data);
-        Hashes = trpak.Hashes;
-        Entries = trpak.Entries;
-    }
-
-    public static Trpak Load(string path)
-    {
-        return FlatBufferConverter.DeserializeFrom<Trpak>(path);
-    }
+    public byte[] this[ulong hash] => GetData(Array.BinarySearch(Hashes, hash));
+    public byte[] this[string name] => GetData(Array.BinarySearch(Hashes, FnvHash.Fnv1a_64(name)));
 
     private byte[] GetData(int index)
     {
@@ -72,6 +56,16 @@ public class Trpak
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    public static Trpak Load(string path)
+    {
+        return FlatBufferConverter.DeserializeFrom<Trpak>(path);
+    }
+
+    public static Trpak Load(byte[] data)
+    {
+        return FlatBufferConverter.DeserializeFrom<Trpak>(data);
     }
 
     [FlatBufferTable]

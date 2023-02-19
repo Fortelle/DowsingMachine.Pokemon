@@ -1,9 +1,8 @@
 ﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Projects;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
-public class SARC : ICollectionArchive<byte[]>, ILargeArchive
+public class SARC : ICollectionArchive<byte[]>, IDisposable
 {
     private const string Magic = "SARC";
 
@@ -18,13 +17,14 @@ public class SARC : ICollectionArchive<byte[]>, ILargeArchive
     public SFAT Sfat;
     public SFNT Sfnt;
 
-    private Stream Stream { get; set; }
+    public int Count => Sfat.EntryCount;
+    public byte[] this[int index] => GetData(index);
+    public IEnumerable<Entry<byte[]>> AsEnumerable() => Enumerable.Range(0, Count)
+        .Select(i => new Entry<byte[]>(this[i], GetFilename(i), i));
+    public IEnumerable<byte[]> Values => Enumerable.Range(0, Count).Select(i => this[i]);
+
     private BinaryReader Reader { get; set; }
 
-    public byte[] this[int index] => GetData(index);
-    public byte[] this[string name] => throw new NotImplementedException();
-    public IEnumerable<Entry<byte[]>> Entries => Enumerable.Range(0, Sfat.EntryCount)
-        .Select(i => new Entry<byte[]>(this[i], GetFilename(i), i));
 
     public SARC()
     {
@@ -34,27 +34,18 @@ public class SARC : ICollectionArchive<byte[]>, ILargeArchive
 
     public void Open(string path)
     {
-        Stream = File.OpenRead(path);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(File.OpenRead(path));
 
         Load();
     }
 
     public void Open(byte[] data)
     {
-        Stream = new MemoryStream(data);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(new MemoryStream(data));
 
         Load();
     }
 
-    public void Open(Stream stream)
-    {
-        Stream = stream;
-        Reader = new BinaryReader(stream);
-
-        Load();
-    }
 
     private void Load()
     {
@@ -106,9 +97,9 @@ public class SARC : ICollectionArchive<byte[]>, ILargeArchive
 
     public void Dispose()
     {
-        Stream?.Dispose();
         Reader?.Dispose();
     }
+
 
     // File Allocation Table
     public class SFAT

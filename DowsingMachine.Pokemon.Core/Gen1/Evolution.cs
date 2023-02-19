@@ -7,4 +7,3 @@ public class Evolution
     public List<Dictionary<string, int>> Methods;
     public List<LevelupMove> Moves;
 }
-

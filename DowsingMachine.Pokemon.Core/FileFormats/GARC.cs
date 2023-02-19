@@ -1,10 +1,9 @@
 ﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Projects;
 using System.Diagnostics;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
-public class GARC : ICollectionArchive<byte[]>, ILargeArchive
+public class GARC : ICollectionArchive<byte[]>, IDisposable
 {
     public const string Magic = "GARC"; // 0x4E415243
 
@@ -13,27 +12,22 @@ public class GARC : ICollectionArchive<byte[]>, ILargeArchive
     private FATB Fatb;
     private FIMG Fimg;
 
-    private Stream Stream { get; set; }
     private BinaryReader Reader { get; set; }
 
+    public int Count { get; set; }
     public byte[] this[int index] => GetData(index);
-    public byte[] this[string name] => throw new NotImplementedException();
-
-    public IEnumerable<Entry<byte[]>> Entries
+    public IEnumerable<Entry<byte[]>> AsEnumerable()
     {
-        get
-        {
-            int c = 0;
+        int c = 0;
 
-            for (int i = 0; i < Fatb.FileCount; i++)
+        for (int i = 0; i < Fatb.FileCount; i++)
+        {
+            for (int j = 0; j < Fatb.Files[i].Variations.Length; j++)
             {
-                for (int j = 0; j < Fatb.Files[i].Variations.Length; j++)
+                if (Fatb.Files[i].Variations[j] != null)
                 {
-                    if (Fatb.Files[i].Variations[j] != null)
-                    {
-                        var data = GetData(i, j);
-                        yield return new Entry<byte[]>(data, c++);
-                    }
+                    var data = GetData(i, j);
+                    yield return new Entry<byte[]>(data, c++);
                 }
             }
         }
@@ -45,24 +39,14 @@ public class GARC : ICollectionArchive<byte[]>, ILargeArchive
 
     public void Open(string path)
     {
-        Stream = File.OpenRead(path);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(File.OpenRead(path));
 
         Load();
     }
 
     public void Open(byte[] data)
     {
-        Stream = new MemoryStream(data);
-        Reader = new BinaryReader(Stream);
-
-        Load();
-    }
-
-    public void Open(Stream stream)
-    {
-        Stream = stream;
-        Reader = new BinaryReader(stream);
+        Reader = new BinaryReader(new MemoryStream(data));
 
         Load();
     }
@@ -73,9 +57,11 @@ public class GARC : ICollectionArchive<byte[]>, ILargeArchive
         Fato = new (Reader);
         Fatb = new (Reader);
         Fimg = new (Reader);
+
+        Count = Fatb.Files.Sum(x => x.Variations.Length);
     }
 
-    public byte[]? GetData(int fileIndex)
+    private byte[]? GetData(int fileIndex)
     {
         return GetData(fileIndex, 0);
     }
@@ -95,7 +81,6 @@ public class GARC : ICollectionArchive<byte[]>, ILargeArchive
     public void Dispose()
     {
         Reader?.Dispose();
-        Stream?.Dispose();
     }
 
 

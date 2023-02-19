@@ -1,15 +1,13 @@
-﻿using System;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace PBT.DowsingMachine.Pokemon.Common;
 
 [JsonConverter(typeof(PokemonIdConverter))]
-public struct PokemonId : IEquatable<PokemonId>
+public struct PokemonId : IEquatable<PokemonId>, IComparable, IComparable<PokemonId>
 {
     public readonly static PokemonId Empty = new();
-    private readonly static char[] Separators = new[] { '.', '-' };
 
     public static string Format = "{0:0000}.{1:000}";
 
@@ -38,17 +36,59 @@ public struct PokemonId : IEquatable<PokemonId>
 
     public static bool operator ==(PokemonId x, PokemonId y) => x.Equals(y);
 
-    public static bool operator !=(PokemonId x, PokemonId y) => !x.Equals(y);
+    public static bool operator !=(PokemonId x, PokemonId y) => !(x == y);
 
     public static bool operator ==(PokemonId x, string y) => x.Equals(Parse(y));
 
-    public static bool operator !=(PokemonId x, string y) => !x.Equals(Parse(y));
+    public static bool operator !=(PokemonId x, string y) => !(x == y);
+
+    public static bool operator <(PokemonId x, PokemonId y) => x.CompareTo(y) < 0;
+
+    public static bool operator >(PokemonId x, PokemonId y) => y < x;
+
+    public static bool operator <=(PokemonId x, PokemonId y) => x.CompareTo(y) <= 0;
+
+    public static bool operator >=(PokemonId x, PokemonId y) => y <= x;
 
     public static bool operator true(PokemonId x) => x.Number > 0;
 
     public static bool operator false(PokemonId x) => x.Number <= 0;
 
-    public override bool Equals(object obj)
+    public int CompareTo(object? obj)
+    {
+        if (obj is PokemonId otherId)
+        {
+            return CompareTo(otherId);
+        }
+        throw new ArgumentException();
+    }
+
+    public int CompareTo(PokemonId other)
+    {
+        if (Number > other.Number)
+        {
+            return 1;
+        }
+
+        if (Number < other.Number)
+        {
+            return -1;
+        }
+
+        if (Form > other.Form)
+        {
+            return 1;
+        }
+
+        if (Form < other.Form)
+        {
+            return -1;
+        }
+
+        return 0;
+    }
+
+    public override bool Equals(object? obj)
     {
         return obj is PokemonId id && Equals(id);
     }
@@ -79,15 +119,24 @@ public struct PokemonId : IEquatable<PokemonId>
 
     public static PokemonId Parse(string? key)
     {
-        if(string.IsNullOrEmpty(key))
+        if (string.IsNullOrWhiteSpace(key))
         {
-            return new ();
+            return Empty;
         }
-        var parts = key.Split(Separators);
-        var number = int.Parse(parts[0]);
-        var form = parts.Length > 1 ? int.Parse(parts[1]) : 0;
-        var id = new PokemonId(number, form);
-        return id;
+
+        int number = 0, form = 0;
+
+        var ms = Regex.Matches(key, @"\d+");
+        if (ms.Count >= 1)
+        {
+            number = int.Parse(ms[0].Value);
+        }
+        if (ms.Count >= 2)
+        {
+            form = int.Parse(ms[1].Value);
+        }
+
+        return new PokemonId(number, form);
     }
 
     private class PokemonIdConverter : JsonConverter<PokemonId>
@@ -103,4 +152,3 @@ public struct PokemonId : IEquatable<PokemonId>
         }
     }
 }
-

@@ -1,4 +1,4 @@
-﻿using PBT.DowsingMachine.Projects;
+﻿using PBT.DowsingMachine.Data;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
@@ -11,15 +11,8 @@ public class Overlay : IObjectArchive<byte[]>
     {
     }
 
-    public Overlay(string path)
-    {
-        Open(path);
-    }
-
-    public Overlay(byte[] data)
-    {
-        Open(data);
-    }
+    public Overlay(string path) => Open(path);
+    public Overlay(byte[] data) => Open(data);
 
     public void Open(string path)
     {
@@ -30,11 +23,6 @@ public class Overlay : IObjectArchive<byte[]>
     public void Open(byte[] data)
     {
         Data = DecompressOverlay(data);
-    }
-
-    public void Open(Stream stream)
-    {
-        throw new NotSupportedException();
     }
 
     private static byte[] DecompressOverlay(byte[] sourcedata)

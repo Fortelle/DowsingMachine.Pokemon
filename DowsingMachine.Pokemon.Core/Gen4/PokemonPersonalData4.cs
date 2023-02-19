@@ -1,4 +1,5 @@
 ﻿using PBT.DowsingMachine.Data;
+using PBT.DowsingMachine.Projects;
 using System.Runtime.InteropServices;
 
 namespace PBT.DowsingMachine.Pokemon.Games;
@@ -13,8 +14,8 @@ public class Personal4
 
     public byte Basic_spepow;
     public byte Basic_spedef;
-    public byte Type1;
-    public byte Type2;
+    [StringReference(@"typename")] public byte Type1;
+    [StringReference(@"typename")] public byte Type2;
 
     public byte Get_rate;
     public byte Give_exp;

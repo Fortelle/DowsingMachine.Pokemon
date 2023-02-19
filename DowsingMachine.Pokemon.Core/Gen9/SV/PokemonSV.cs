@@ -1,20 +1,21 @@
 ﻿using GFMSG;
 using GFMSG.Pokemon;
+using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats;
 using PBT.DowsingMachine.Pokemon.Core.FileFormats.FlatBuffers;
-using PBT.DowsingMachine.Pokemon.Games;
+using PBT.DowsingMachine.Pokemon.Core.Gen8;
 using PBT.DowsingMachine.Projects;
 using System.Diagnostics;
 using System.Drawing;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen9;
 
-public class PokemonProjectSV : PokemonProjectNS
+public class PokemonProjectSV : PokemonProjectTrinity, IPreviewString
 {
     public static readonly Dictionary<string, string[]> LanguageMaps = new()
     {
@@ -32,72 +33,34 @@ public class PokemonProjectSV : PokemonProjectNS
 
     public PokemonProjectSV() : base()
     {
-        AddReference("data.trpfd",
-            new ByteReader(@"romfs\arc\data.trpfd"),
-            FlatBufferConverter.DeserializeFrom<TRPFD>
-            );
-
-        AddReference("data.trpfs",
-            new ArchiveReader<TRPFS>(@"romfs\arc\data.trpfs")
-            );
-
-        AddReference("personal",
-            new TrpfsReader(@"avalon/data/personal_array.bin"),
-            Metatable<PersonalSV>.Deserialize
-            );
-
-        AddReference("waza",
-            new TrpfsReader(@"avalon/data/waza_array.bin"),
-            Metatable<WazaSV>.Deserialize
-            );
-
-        AddReference("tokusei",
-            new TrpfsReader(@"avalon/data/tokusei_array.bin"),
-            Metatable<TestSchemaUshort>.Deserialize
-            );
-
-        AddReference("6E640887C479E026",
-            new ByteReader(@"trpak\avalondataai_common_raid01.bin.trpak\6E640887C479E026"),
-            Metatable<TestSchemaUshort>.Deserialize
-            );
-
-        AddReference($"message", new MessageReaderSV(@$"trpfs", LanguageMaps));
-        AddReference($"messagereference", new DataInfo(@"trpak\messagedatSimp_Chinesecommon{0}.trpak"));
-
-        AddReference("learnsets", ReadLearnsets);
-    }
-
-
-    public class TrpfsReader : DataReader<Trpak, byte[]>
-    {
-        private ulong Hash;
-
-        public TrpfsReader(string path) : base(path)
+        Resources.Add(new DataResource("pokemon_personals")
         {
-
-        }
-
-        protected override Trpak Open()
+            Reference = new TrinityRef(@"avalon/data/personal_array.bin"),
+            Reader = new DataReader<byte[]>()
+                .Then(Metatable<PersonalSV>.Deserialize)
+        });
+        Resources.Add(new DataResource("moves")
         {
-            var trpfd = Project.GetData<TRPFD>("data.trpfd", CacheMode.CacheFinal);
-            var trpfs = Project.GetData<TRPFS>("data.trpfs", CacheMode.CacheFinal);
+            Reference = new TrinityRef(@"avalon/data/waza_array.bin"),
+            Reader = new DataReader<byte[]>()
+                .Then(Metatable<WazaSV>.Deserialize)
+        });
 
-            Hash = FnvHash.Fnv1a_64(RelatedPath);
-            var unpackedIndex = Array.BinarySearch(trpfd.UnpackedFileHashes, Hash);
-            var packIndex = (int)trpfd.UnpackedFileData[unpackedIndex].Index;
-            var packFilename = trpfd.PackFilenames[packIndex];
-
-            var packData = trpfs[packFilename];
-            var trpak = new Trpak();
-            trpak.Open(packData);
-
-            return trpak;
-        }
-
-        protected override byte[] Read(Trpak trpak)
+        Resources.Add(new DataResource("message_preview_dat")
         {
-            return trpak[Hash];
-        }
+            Reference = new TrinityRef(@"message/dat/{0}/{1}/{2}.dat"),
+            Reader = new DataReader<byte[]>()
+                .Then(data => new MsgDataV2(data)),
+            Previewable = false,
+        });
+        Resources.Add(new DataResource("message_preview_tbl")
+        {
+            Reference = new TrinityRef(@"message/dat/{0}/{1}/{2}.tbl"),
+            Reader = new DataReader<byte[]>()
+                .Then(data => new AHTB(data)),
+            Previewable = false,
+        });
+
     }
 
     [Test]
@@ -106,7 +69,7 @@ public class PokemonProjectSV : PokemonProjectNS
         var sb = new StringBuilder();
         var properties = typeof(WazaSV)
             .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Where(x=>x.Name.StartsWith("Flag_"))
+            .Where(x => x.Name.StartsWith("Flag_"))
             .ToArray();
         var wazadata = GetData<WazaSV[]>("waza");
 
@@ -124,103 +87,68 @@ public class PokemonProjectSV : PokemonProjectNS
         return sb.ToString();
     }
 
-
-    protected override MsgWrapper GetPreviewMsgWrapper(object[] args)
+    #region "Message"
+    protected MsgFormatter MsgFormatter= new PokemonMsgFormatterV2();
+    private MsgWrapper GetWrapper(string folder, string filename, string langcode = null)
     {
-        var name = (string)args[0];
-        var info = GetData<DataInfo>("messagereference");
-        var path1 = info.RelatedPath.Replace("{0}", name + ".tbl");
-        var path2 = info.RelatedPath.Replace("{0}", name + ".dat");
-        var files = new List<string>();
-        var pf1 = GetPairedFiles(path1, "*");
-        var pf2 = GetPairedFiles(path2, "*");
-        var pfs = pf1.Concat(pf2).ToArray();
-        if (pfs.Length == 0)
+        langcode ??= DowsingMachineApp.GetLangcode(LanguageMaps.Values.SelectMany(x => x).ToArray());
+        var langname = LanguageMaps.First(x => x.Value.Contains(langcode)).Key;
+
+        var wrapper = GetOrCreateCache(langcode + "_" + filename, () => {
+            var msg = GetData<MsgDataV2>("message_preview_dat", new GetDataOptions()
+            {
+                UseCache = false,
+                ReferenceArguments = new[] { langname, folder, filename }
+            });
+            var ahtb = GetData<AHTB>("message_preview_tbl", new GetDataOptions()
+            {
+                UseCache = false,
+                ReferenceArguments = new[] { langname, folder, filename }
+            });
+            var wrapper = new MsgWrapper(msg, ahtb, filename, FileVersion.GenVIII, null);
+            wrapper.Load();
+            return wrapper;
+        });
+        return wrapper;
+    }
+
+    public string GetString(string group, string filename, object value)
+    {
+        var wrapper = GetWrapper(group, filename);
+        if (wrapper == null) return "";
+
+        var valuetext = value.ToString();
+        if (int.TryParse(valuetext, out var index))
         {
-            return null;
+            var entry = wrapper.TryGetEntry(index);
+            if (entry == null) return $"({index})";
+            return MsgFormatter.Format(entry[0], new());
         }
         else
         {
-            var data2 = pfs.Select(x => File.ReadAllBytes(x.Newer)).ToArray();
-
-            if (new string(Encoding.Default.GetChars(data2[0], 0, 4)) == "AHTB")
-            {
-                data2 = data2.Reverse().ToArray();
-            }
-
-            var msg = new MsgDataV2(data2[0]);
-            var ahtb = new AHTB(data2[1]);
-            var wrapper = new MsgWrapper();
-            wrapper.Load(msg, ahtb);
-            return wrapper;
+            var entry = wrapper.TryGetEntry(valuetext);
+            if (entry == null) return $"(${value})";
+            return MsgFormatter.Format(entry[0], new());
         }
     }
 
-    [Extraction]
-    public IEnumerable<string> ExtractTrpfs()
+    public string[] GetStrings(string group, string filename)
     {
-        var trpfd = GetData<TRPFD>($"data.trpfd");
-        var trpfs = GetData<TRPFS>($"data.trpfs");
+        var wrapper = GetWrapper(group, filename);
+        Debug.Assert(wrapper != null);
 
-        var outputFolder = Path.Combine(PatchFolder ?? OriginalFolder, "trpfs");
-
-        for (var i = 0; i < trpfd.PackFilenames.Length; i++)
-        {
-            var hash = Utilities.Codecs.FnvHash.Fnv1a_64(trpfd.PackFilenames[i]);
-            var data = trpfs[hash];
-            var filename = trpfd.PackFilenames[i].Replace("arc/", "");
-            var filepath = Path.Combine(outputFolder, filename);
-            File.WriteAllBytes(filepath, data);
-            yield return filepath;
-        }
+        var options = new StringOptions(GFMSG.StringFormat.Plain, "");
+        return wrapper.GetTextEntries()
+            .Select(x => MsgFormatter.Format(x[0], options))
+            .ToArray();
     }
 
-    [Extraction]
-    public IEnumerable<string> ExtractTrpak()
+    public string GetPreviewString(params object[] args)
     {
-        var originFolder = Path.Combine(OriginalFolder, "trpak");
-        var patchFolder = Path.Combine(PatchFolder ?? OriginalFolder, "trpak"); 
-
-        var trpfd = GetData<TRPFD>($"data.trpfd");
-        var trpfs = GetData<TRPFS>($"data.trpfs");
-
-        var md5Algo = MD5.Create();
-        var hasPatch = originFolder != patchFolder;
-
-        for (var i = 0; i < trpfd.PackFilenames.Length; i++)
-        {
-            var hash = Utilities.Codecs.FnvHash.Fnv1a_64(trpfd.PackFilenames[i]);
-            var data = trpfs[hash];
-
-            var foldername = trpfd.PackFilenames[i].Replace("arc/", "");
-            var folderexists = Directory.Exists(Path.Combine(patchFolder, foldername));
-
-            var trpak = new Trpak();
-            trpak.Open(data);
-            for (var j = 0; j < trpak.Entries.Length; j++)
-            {
-                var filename = trpak.Hashes[j].ToString("X16");
-                var filedata = trpak[j];
-                var originFilepath = Path.Combine(originFolder, foldername, filename);
-                var patchFilepath = Path.Combine(patchFolder, foldername, filename);
-
-                if (hasPatch && File.Exists(originFilepath))
-                {
-                    using var ms = File.OpenRead(originFilepath);
-                    var originMd5 = BitConverter.ToString(md5Algo.ComputeHash(ms));
-                    var patchMd5 = BitConverter.ToString(md5Algo.ComputeHash(filedata));
-                    if (originMd5 == patchMd5) continue;
-                }
-                if (!folderexists)
-                {
-                    Directory.CreateDirectory(Path.Combine(patchFolder, foldername));
-                    folderexists = true;
-                }
-                File.WriteAllBytes(patchFilepath, filedata);
-            }
-            yield return foldername;
-        }
+        return GetString("common", $"{args[0]}", args[1]);
     }
+    #endregion
+
 
     [Test]
     public void Resize()
@@ -233,7 +161,7 @@ public class PokemonProjectSV : PokemonProjectNS
         Directory.CreateDirectory(outputFolder);
 
         var files = Directory.GetFiles(inputFolder, "*.png");
-        foreach(var file in files)
+        foreach (var file in files)
         {
             using var bmp = Bitmap.FromFile(file);
             using var bmp2 = new Bitmap(bmp, new Size(1024, 536));
@@ -243,65 +171,11 @@ public class PokemonProjectSV : PokemonProjectNS
 
     }
 
-    [Extraction]
-    public IEnumerable<string> ExtractSarc()
+    [Data("learnsets/")]
+    public LearnsetTableCollection DumpLearnsets()
     {
-        var files = GetFiles(@"\trpak\", "*", PatchReadMode.OnlyPatch);
-        foreach (var file in files)
-        {
-            if (file.RelativePath.Contains(@"\messagedat"))
-            {
-                continue;
-            }
-
-            using var ms = File.OpenRead(file.Path);
-            var signature = $"{(char)ms.ReadByte()}{(char)ms.ReadByte()}{(char)ms.ReadByte()}{(char)ms.ReadByte()}";
-
-            if (signature == "SARC")
-            {
-                ms.Position = 0;
-                using var sarc = new SARC();
-                sarc.Open(ms);
-
-                var bntxentry = sarc.Entries.FirstOrDefault(x => x.Name == "timg/__Combined.bntx");
-                if (bntxentry != null)
-                {
-                    var outfolder = file.Path.Replace(@"\trpak", @"\sarc_bntx");
-                    using var bntx = new BNTX(bntxentry.Data);
-                    if (bntx.Name == null) continue;
-                    bntx.Output(outfolder, BNTX.OutputMode.IgnoreFilename);
-                }
-                else
-                {
-                    var outfolder = file.Path.Replace(@"\trpak", @"\sarc");
-                    foreach (var entry in sarc.Entries)
-                    {
-                        var filepath = Path.Combine(outfolder, entry.Name);
-                        Directory.CreateDirectory(Path.GetDirectoryName(filepath));
-                        File.WriteAllBytes(filepath, entry.Data);
-                    }
-                }
-            }
-            else if (signature == "BNTX")
-            {
-                ms.Position = 0;
-                var outfolder = file.Path.Replace(@"\trpak", @"\bntx");
-                using var bntx = new BNTX(ms);
-                if (bntx.Name == null) continue;
-                outfolder = Path.GetDirectoryName(outfolder); 
-                bntx.Output(outfolder, BNTX.OutputMode.IgnoreFilename);
-                bntx.Dispose();
-            }
-
-            yield return file.Path;
-        }
-    }
-
-    private LearnsetTableCollection ReadLearnsets()
-    {
-        var lc = new LearnsetTableCollection();
-
-        var personals = GetData<PersonalSV[]>("personal");
+        var personals = GetData<PersonalSV[]>("pokemon_personals");
+        var collection = new LearnsetTableCollection("{0:0000}.{1:00}");
 
         {
             var lt = new LearnsetTable();
@@ -311,7 +185,7 @@ public class PokemonProjectSV : PokemonProjectNS
                 var data = pm.Waza_level.Select(x => $"{x.Waza}:{x.Level}").ToArray();
                 lt.Add(id, data);
             }
-            lc.Add("levelup", lt);
+            collection.Add("levelup", lt);
         }
 
         {
@@ -322,7 +196,7 @@ public class PokemonProjectSV : PokemonProjectNS
                 var data = pm.Waza_machine.Select(x => $"{x}").ToArray();
                 lt.Add(id, data);
             }
-            lc.Add("tm", lt);
+            collection.Add("tm", lt);
         }
 
         {
@@ -333,9 +207,9 @@ public class PokemonProjectSV : PokemonProjectNS
                 var data = pm.Waza_egg.Select(x => $"{x}").ToArray();
                 lt.Add(id, data);
             }
-            lc.Add("egg", lt);
+            collection.Add("egg", lt);
         }
-
+        
         {
             var lt = new LearnsetTable();
             foreach (var pm in personals)
@@ -344,20 +218,208 @@ public class PokemonProjectSV : PokemonProjectNS
                 var data = pm.Waza_tutor.Select(x => $"{x}").ToArray();
                 lt.Add(id, data);
             }
-            lc.Add("tutor", lt);
+            collection.Add("tutor", lt);
         }
 
-        return lc;
+        return collection;
     }
 
-    [Dump]
-    public void DumpLearnsets()
+    private string GetPokemonName(PokemonId id)
     {
-        var learnsets = GetData<LearnsetTableCollection>("learnsets");
-        var outputFolder = Path.Combine(OutputFolder, "learnset");
-        var prefix = $"scarletviolet_{Version.Major}.{Version.Minor}.{Version.Build}";
-        var format = "{0:0000}.{1:00}";
-        learnsets.Output(outputFolder, format, prefix);
+        var monsname = GetPreviewString("monsname", id.Number);
+        var form = GetPreviewString("zkn_form", $"ZKN_FORM_{id.Number:000}_{id.Form:000}");
+        if (form != "") monsname += "(" + form + ")";
+        return monsname;
     }
 
+    [Data("pokemon.md")]
+    public string DumpPokemonInfo()
+    {
+        var personals = GetData<PersonalSV[]>("pokemon_personals");
+        var learnsets = DumpLearnsets();
+        var sb = new StringBuilder();
+        foreach (var personal in personals)
+        {
+            if (!personal.Enable) continue;
+            var pid = new PokemonId(personal.NumForm.Number, personal.NumForm.Form);
+            sb.AppendLine($"No.{pid}  {GetPokemonName(pid)}");
+            sb.AppendLine($"--------");
+            sb.AppendLine($"- Base Stats: {personal.Basic.Hp} / {personal.Basic.Atk} / {personal.Basic.Def} / {personal.Basic.Spatk} / {personal.Basic.Spdef} / {personal.Basic.Agi} (Total: {personal.Basic.Hp + personal.Basic.Atk + personal.Basic.Def + personal.Basic.Spatk + personal.Basic.Spdef + personal.Basic.Agi})");
+            sb.AppendLine($"- Types: {GetString("common", "typename", personal.Type1)} / {GetString("common", "typename", personal.Type2)}");
+            sb.AppendLine($"- Abilities: {GetString("common", "tokusei", personal.Tokusei1)} / {GetString("common", "tokusei", personal.Tokusei2)} / {GetString("common", "tokusei", personal.Tokusei3)}");
+            var ls = learnsets.GetPokemon(pid);
+            foreach (var (name, moves) in ls)
+            {
+                sb.AppendLine($"- {name}:");
+                foreach (var move in moves)
+                {
+                    sb.AppendLine($"  - {GetString("common", "wazaname", int.Parse(move.Split(':')[0]))}");
+                }
+            }
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    [Action]
+    public string CompareWithSWSH()
+    {
+        var old = DowsingMachineApp.FindProject<PokemonProjectSWSH>(s => s
+            .MaxBy(x => x.Version)
+            );
+        if (old is null) return "";
+        old.BeginWork();
+
+        var sb = new StringBuilder();
+
+        {
+            var oldLearnsets = old.DumpLearnsets();
+            var newLearnsets = DumpLearnsets();
+            var diffs = newLearnsets.CompareWith(oldLearnsets, "tm");
+            foreach (var diff in diffs)
+            {
+                sb.AppendLine($"No.{diff.Pokemon} {GetPokemonName(diff.Pokemon)}");
+                sb.AppendLine(diff.ToText());
+            }
+        }
+
+        old.EndWork();
+        return sb.ToString();
+    }
+
+    [Action]
+    public string CompareWithPreviousVersion()
+    {
+        var old = DowsingMachineApp.FindProject<PokemonProjectSV>(s => s
+            .Where(x => x != this && x.Version < Version)
+            .MaxBy(x => x.Version)
+            );
+        if (old is null) return "";
+        old.Active();
+        old.BeginWork();
+
+        var sb = new StringBuilder();
+
+        {
+            var oldPersonals = old.GetData<PersonalSV[]>("pokemon_personals").ToDictionary(pm => new PokemonId(pm.NumForm.Number, pm.NumForm.Form), pm => pm);
+            var newPersonals = GetData<PersonalSV[]>("pokemon_personals").ToDictionary(pm => new PokemonId(pm.NumForm.Number, pm.NumForm.Form), pm => pm);
+
+            var ch = new DictionaryComparer<PokemonId>()
+            {
+                KeyToString = (x) => $"No.{x} {GetPokemonName(x)}",
+                IgnoreProperties = new[]
+                {
+                    "Waza_machine",
+                    "Waza_egg",
+                    "Waza_tutor",
+                    "Waza_level",
+                },
+            };
+            sb.AppendLine("Pokemon");
+            sb.AppendLine("----------");
+            sb.AppendLine(ch.Compare(oldPersonals, newPersonals));
+        }
+
+        {
+            var newLearnsets = DumpLearnsets();
+            var oldLearnsets = old.DumpLearnsets();
+            var diffs = newLearnsets.CompareWith(oldLearnsets);
+            var movenames = GetStrings("common", "wazaname");
+            sb.AppendLine("Learnsets");
+            sb.AppendLine("----------");
+            foreach (var diff in diffs)
+            {
+                sb.AppendLine($"No.{diff.Pokemon} {GetPokemonName(diff.Pokemon)}");
+                sb.AppendLine(diff.ToText(movenames));
+            }
+        }
+
+        {
+            sb.AppendLine("Message");
+            sb.AppendLine("----------");
+            var oldMsg = old.DumpMessages();
+            var newMsg = DumpMessages();
+            var langcodes = LanguageMaps.Values.SelectMany(x => x).ToArray();
+            var langcode = DowsingMachineApp.GetLangcode(langcodes);
+            var ignores = LanguageMaps.Where(kv => !kv.Value.Contains(langcode)).Select(x => x.Key).ToArray();
+            var diff = PokemonUtils.CompareGFMSG(oldMsg, newMsg, ignores);
+            sb.AppendLine(diff);
+        }
+
+        return sb.ToString();
+    }
+
+
+    [Data]
+    public MultilingualCollection DumpMessages()
+    {
+        var reg = new Regex(@"^arc/messagedat(.+?)(common|script)(.+?)\.(?:dat|tbl)\.trpak$");
+
+        var lst = new List<(string Language, string Group, string Filename)>();
+
+        {
+            var trpfs = GetData<TRPFS>("data.trpfs");
+            var trpfd = GetData<TRPFD>("data.trpfd");
+            for (var i = 0; i < trpfd.PackNames.Length; i++)
+            {
+                var match = reg.Match(trpfd.PackNames[i]);
+                if (!match.Success) continue;
+                lst.Add((match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value));
+            }
+        }
+        if (IsExtendable && OriginalProject != null)
+        {
+            var trpfs = OriginalProject.GetData<TRPFS>("data.trpfs");
+            var trpfd = OriginalProject.GetData<TRPFD>("data.trpfd");
+            for (var i = 0; i < trpfd.PackNames.Length; i++)
+            {
+                var match = reg.Match(trpfd.PackNames[i]);
+                if (!match.Success) continue;
+                var o = (match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value);
+                if (lst.Any(x => x == o))
+                {
+                    continue;
+                }
+                lst.Add(o);
+            }
+        }
+
+        var dict = new Dictionary<string, List<MsgWrapper>>();
+        foreach (var (langname, group, name) in lst)
+        {
+            var langcodes = LanguageMaps[langname];
+
+            var wrapper = new MsgWrapper(name, FileVersion.GenVIII, langcodes)
+            {
+                LazyLoad = (wr) =>
+                {
+                    var msg = GetData<MsgDataV2>("message_preview_dat", new GetDataOptions()
+                    {
+                        UseCache = false,
+                        ReferenceArguments = new[] { langname, group, name }
+                    });
+                    var ahtb = GetData<AHTB>("message_preview_tbl", new GetDataOptions()
+                    {
+                        UseCache = false,
+                        ReferenceArguments = new[] { langname, group, name }
+                    });
+                    wr.Load(msg, ahtb);
+                }
+            };
+
+            if (!dict.TryGetValue(langcodes[0], out var wrappers))
+            {
+                wrappers = new List<MsgWrapper>();
+                dict.Add(langname, wrappers);
+            }
+            wrappers.Add(wrapper);
+        }
+        var mc = new MultilingualCollection
+        {
+            Formatter = new PokemonMsgFormatterV2(),
+            Wrappers = dict.ToDictionary(x => x.Key, x => x.Value.ToArray()),
+        };
+        return mc;
+    }
 }

@@ -2,7 +2,7 @@
 using PBT.DowsingMachine.Pokemon.Common;
 using PBT.DowsingMachine.Pokemon.Core.Gen1;
 using PBT.DowsingMachine.Projects;
-using PBT.DowsingMachine.Utilities;
+using System.ComponentModel;
 using System.Text;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen2;
@@ -10,11 +10,11 @@ namespace PBT.DowsingMachine.Pokemon.Core.Gen2;
 public class PokemonProjectII : FileProject, IPokemonProject
 {
     [Option]
+    [TypeConverter(typeof(EnumSelectConverter))]
+    [Select(GameTitle.Gold, GameTitle.Silver, GameTitle.Crystal)]
     public GameTitle Title { get; set; }
 
     public GameInfo Game { get; set; }
-
-    private const int MONS_TBL_SIZE = 0x0020;
 
     public PokemonProjectII() : base()
     {
@@ -26,32 +26,70 @@ public class PokemonProjectII : FileProject, IPokemonProject
 
         ((IPokemonProject)this).Set(Title);
 
+        var positions = new
+        {
+            pokemon_personals = 0u,
+            tmhm_move_list = 0u,
+            pokemon_evolution_table = 0u,
+            pokemon_egg_moves = 0u,
+        };
+
         switch (Title)
         {
             case GameTitle.Gold or GameTitle.Silver:
-                AddReference("PersonalTable", new SingleReader(0x51AA9), ReadPokemon);
-                AddReference("TMHMList", new SingleReader(0x11A00), ReadTMHMList);
-                AddReference("EvolutionTable", new SingleReader(0x4295F), ReadEvolution);
-                AddReference("EggMoves", new SingleReader(0x23B07), ReadEggMoves);
+                positions = positions with
+                {
+                    pokemon_personals = 0x51AA9,
+                    tmhm_move_list = 0x11A00,
+                    pokemon_evolution_table = 0x4295F,
+                    pokemon_egg_moves = 0x23B07,
+                };
                 break;
             case GameTitle.Crystal:
-                AddReference("PersonalTable", new SingleReader(0x514BA), ReadPokemon);
-                AddReference("TMHMList", new SingleReader(0x11614), ReadTMHMList);
-                AddReference("EvolutionTable", new SingleReader(0x42753), ReadEvolution);
-                AddReference("EggMoves", new SingleReader(0x23B8C), ReadEggMoves);
+                positions = positions with
+                {
+                    pokemon_personals = 0x514BA,
+                    tmhm_move_list = 0x11614,
+                    pokemon_evolution_table = 0x42753,
+                    pokemon_egg_moves = 0x23B8C,
+                };
                 break;
         }
+
+        Resources.Add(new DataResource("pokemon_personals")
+        {
+            Reference = new PosRef(positions.pokemon_personals),
+            Reader = new DataReader<BinaryReader>()
+                .Then(br => br.ReadByteMatrix(0x20, 251))
+                .Then(MarshalArray<Personal2>)
+        });
+
+        // 0-49 for tm, 50-56 for hm, 57-59 for tutor(crystal only)
+        Resources.Add(new DataResource("tmhm_move_list")
+        {
+            Reference = new PosRef(positions.tmhm_move_list),
+            Reader = new DataReader<BinaryReader>()
+                .Then(br => br.ReadBytes(60))
+                .Then(x => x.ToIntegers())
+        });
+
+        Resources.Add(new DataResource("pokemon_evolution_table")
+        {
+            Reference = new PosRef(positions.pokemon_evolution_table),
+            Reader = new DataReader<BinaryReader>()
+                .Then(ReadPokemonEvolutions)
+        });
+
+        Resources.Add(new DataResource("pokemon_egg_moves")
+        {
+            Reference = new PosRef(positions.pokemon_egg_moves),
+            Reader = new DataReader<BinaryReader>()
+                .Then(ReadPokemonEggMoves)
+        });
+
     }
 
-    private static Personal2[] ReadPokemon(BinaryReader br)
-    {
-        return Enumerable.Range(0, 251)
-            .Select(_ => br.ReadBytes(MONS_TBL_SIZE))
-            .Select(x => MarshalUtil.Deserialize<Personal2>(x))
-            .ToArray();
-    }
-
-    private static int[][] ReadEggMoves(BinaryReader br)
+    private static int[][] ReadPokemonEggMoves(BinaryReader br)
     {
         var offsets = Enumerable.Range(0, 251).Select(_ => br.ReadInt16()).ToArray();
 
@@ -66,13 +104,13 @@ public class PokemonProjectII : FileProject, IPokemonProject
                 if (mi == 0xFF) break;
                 moves.Add(mi);
             }
-
             list.Add(moves.ToArray());
         }
 
         return list.ToArray();
     }
-    private static Evolution[] ReadEvolution(BinaryReader br)
+
+    private static Evolution[] ReadPokemonEvolutions(BinaryReader br)
     {
         var offsets = Enumerable.Range(1, 251).Select(_ => br.ReadInt16()).ToArray();
 
@@ -161,83 +199,141 @@ public class PokemonProjectII : FileProject, IPokemonProject
         return list.ToArray();
     }
 
-    private static int[] ReadTMHMList(BinaryReader br)
+
+    [Test]
+    public (PokemonId, Personal2)[] GetKeyedPersonals()
     {
-        // 0-49 for tm, 50-56 for hm, 57-59 for tutor(crystal only)
-        return br.ReadBytes(60).Select(x => (int)x).ToArray();
+        return GetData<Personal2[]>("pokemon_personals")
+            .Select((p, i) => (new PokemonId(i + 1), p))
+            .ToArray();
     }
 
-    [Dump]
-    public string DumpPersonal()
+
+    [Data(@"learnsets/")]
+    public LearnsetTableCollection DumpLearnsets()
     {
-        var personal = GetData<Personal2[]>("PersonalTable");
+        var personals = GetKeyedPersonals();
+        var evo = GetData<Evolution[]>("pokemon_evolution_table");
+        var tmhmtrlist = GetData<int[]>("tmhm_move_list");
+        var eggs = GetData<int[][]>("pokemon_egg_moves");
 
-        var path = Path.Combine(OutputFolder, $"personal.json");
-        JsonUtil.Serialize(path, personal);
-        return path;
-    }
-
-    [Dump]
-    public IEnumerable<string> DumpLearnset()
-    {
-        var personals = GetData<Personal2[]>("PersonalTable");
-        var suffix = Game.Title.ToString().ToLower();
-        var tmlist = GetData<int[]>("TMHMList");
+        var collection = new LearnsetTableCollection(@"{0:000}");
 
         {
-            var sb = new StringBuilder();
-            for (var i = 0; i < personals.Length; i++)
-            {
-                var tm = PokemonUtils.ToBooleans(personals[i].Machine1, personals[i].Machine2);
-                var data = tmlist.Select((m, j) => new { m, j }).Take(57).Where(x => tm[x.j]).Select(x => x.j < 50 ? $"{x.m}:TM{x.j + 1:00}" : $"{x.m}:HM{x.j - 49:00}");
-                var line = string.Join(",", data);
-                sb.AppendLine($"{personals[i].No:000}\t{line}");
-            }
-            var path = Path.Combine(OutputFolder, $"{suffix}.tm.txt");
-            File.WriteAllText(path, sb.ToString());
-            yield return path;
-        }
-
-        if (Game.Title == GameTitle.Crystal)
-        {
-            var sb = new StringBuilder();
-            for (var i = 0; i < personals.Length; i++)
-            {
-                var tm = PokemonUtils.ToBooleans(personals[i].Machine1, personals[i].Machine2);
-                var data = tmlist.Select((m, j) => new { m, j }).Skip(57).Where(x => tm[x.j]).Select(x => $"{x.m}");
-                var line = string.Join(",", data);
-                sb.AppendLine($"{personals[i].No:000}\t{line}");
-            }
-            var path = Path.Combine(OutputFolder, $"{suffix}.tutor.txt");
-            File.WriteAllText(path, sb.ToString());
-            yield return path;
-        }
-
-        {
-            var sb = new StringBuilder();
-            var evo = GetData<Evolution[]>("EvolutionTable");
+            var lt = new LearnsetTable();
             for (var i = 0; i < 251; i++)
             {
-                var data = evo[i].Moves.Select(x => $"{x.Move}:{x.Level}");
-                var line = string.Join(",", data);
-                sb.AppendLine($"{i + 1:000}\t{line}");
+                var data = evo[i].Moves.Select(x => $"{x.Move}:{x.Level}").ToArray();
+                lt.Add(new(i + 1), data);
             }
-            var path = Path.Combine(OutputFolder, $"{suffix}.levelup.txt");
-            File.WriteAllText(path, sb.ToString());
-            yield return path;
+            collection.Add("levelup", lt);
         }
 
         {
-            var sb = new StringBuilder();
-            var eggs = GetData<int[][]>("EggMoves");
+            var lt = new LearnsetTable();
+            foreach (var (id, personal) in personals)
+            {
+                var fa = new FlagArray(personal.Machine1, personal.Machine2);
+                fa.Flags = fa.Flags.Take(57).ToArray();
+                var tmhmlist = tmhmtrlist.Take(57).ToArray();
+                var data = fa.OfTrue(tmhmlist, (m, j) => j < 50 ? $"{m}:TM{j + 1:00}" : $"{m}:HM{j - 49:00}");
+                lt.Add(id, data);
+            }
+            collection.Add("tm", lt);
+        }
+
+        if (Game.Title is GameTitle.Crystal)
+        {
+            var lt = new LearnsetTable();
+            foreach (var (id, personal) in personals)
+            {
+                var fa = new FlagArray(personal.Machine1, personal.Machine2);
+                fa.Flags = fa.Flags.Skip(57).ToArray();
+                var trlist = tmhmtrlist.Skip(57).ToArray();
+                var data = fa.OfTrue(trlist, (m) => $"{m}").ToArray();
+                lt.Add(id, data);
+            }
+            collection.Add("tutor", lt);
+        }
+
+        {
+            var lt = new LearnsetTable();
             for (var i = 0; i < 251; i++)
             {
-                var line = string.Join(",", eggs[i]);
-                sb.AppendLine($"{i + 1:000}\t{line}");
+                lt.Add(new(i + 1), eggs[i]);
             }
-            var path = Path.Combine(OutputFolder, $"{suffix}.egg.txt");
-            File.WriteAllText(path, sb.ToString());
-            yield return path;
+            collection.Add("egg", lt);
         }
+
+        return collection;
     }
+
+    [Action]
+    public string CompareWithRGBY()
+    {
+        var old = DowsingMachineApp.FindProject<PokemonProjectI>(s => s
+            .MaxBy(x => x.Title)
+            );
+        if (old is null) return "";
+
+        var sb = new StringBuilder();
+
+        {
+            var newLearnsets = DumpLearnsets();
+            var oldLearnsets = old.DumpLearnsets();
+            var diffs = newLearnsets.CompareWith(oldLearnsets, "tm");
+            foreach (var diff in diffs)
+            {
+                sb.AppendLine($"No.{diff.Pokemon.Number:000} {(Monsname)diff.Pokemon.Number}");
+                sb.AppendLine(diff.ToText());
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    [Action]
+    [Title(GameTitle.Crystal)]
+    public string CompareWithGS()
+    {
+        var old = DowsingMachineApp.FindProject<PokemonProjectII>(s => s
+            .Where(p => p.Title is GameTitle.Gold or GameTitle.Silver)
+            .FirstOrDefault()
+            );
+        if (old is null) return "";
+
+        var sb = new StringBuilder();
+
+        {
+            var oldPersonals = old.GetKeyedPersonals().Where(x => x.Item1.IsValid).ToDictionary(x => x.Item1, x => x.Item2);
+            var newPersonals = GetKeyedPersonals().Where(x => x.Item1.IsValid).ToDictionary(x => x.Item1, x => x.Item2);
+
+            var ch = new DictionaryComparer<PokemonId>()
+            {
+                KeyToString = (x) => $"No.{x.Number:000} {(Monsname)x.Number}",
+                IgnoreProperties = new[]
+                {
+                    "Machine1",
+                    "Machine2",
+                },
+            };
+            sb.AppendLine("Pokemon");
+            sb.AppendLine("----------");
+            sb.AppendLine(ch.Compare(oldPersonals, newPersonals));
+        }
+
+        {
+            var newLearnsets = DumpLearnsets();
+            var oldLearnsets = old.DumpLearnsets();
+            var diffs = newLearnsets.CompareWith(oldLearnsets);
+            foreach (var diff in diffs)
+            {
+                sb.AppendLine($"No.{diff.Pokemon.Number:000} {(Monsname)diff.Pokemon.Number}");
+                sb.AppendLine(diff.ToText());
+            }
+        }
+
+        return sb.ToString();
+    }
+
 }

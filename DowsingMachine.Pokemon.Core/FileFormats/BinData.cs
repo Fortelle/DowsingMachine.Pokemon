@@ -1,19 +1,19 @@
 ﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Projects;
 
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
 public class BinData : ICollectionArchive<byte[]>
 {
+    public int Count => _count;
     public byte[] this[int index] => Data[index];
-    public byte[] this[string name] => throw new NotImplementedException();
-    public IEnumerable<Entry<byte[]>> Entries => Data.Select((data,i) => new Entry<byte[]>(data, i));
+    public IEnumerable<Entry<byte[]>> AsEnumerable() => Data.Select((data,i) => new Entry<byte[]>(data, i));
+    public IEnumerable<byte[]> Values => Data;
 
     public string Signature;
-    public ushort Count;
-    private uint[] Offsets;
+    private ushort _count;
+    private uint[] _offsets;
 
-    public byte[][] Data;
+    private byte[][] Data;
 
     public BinData()
     {
@@ -21,7 +21,6 @@ public class BinData : ICollectionArchive<byte[]>
 
     public BinData(string path) => Open(path);
     public BinData(byte[] data) => Open(data);
-    public BinData(Stream stream) => Open(stream);
 
     public void Open(string path)
     {
@@ -49,18 +48,18 @@ public class BinData : ICollectionArchive<byte[]>
     private void Load(BinaryReader reader)
     {
         Signature = new string(reader.ReadChars(2));
-        Count = reader.ReadUInt16();
-        Offsets = Enumerable.Range(0, Count)
+        _count = reader.ReadUInt16();
+        _offsets = Enumerable.Range(0, _count)
             .Select(i => reader.ReadUInt32())
             .ToArray();
 
-        Data = new byte[Count][];
-        for (int i = 0; i < Count; i++)
+        Data = new byte[_count][];
+        for (int i = 0; i < _count; i++)
         {
-            reader.BaseStream.Seek(Offsets[i], SeekOrigin.Begin);
-            var length = i < Count - 1
-                ? Offsets[i + 1] - Offsets[i]
-                : reader.BaseStream.Length - Offsets[i];
+            reader.BaseStream.Seek(_offsets[i], SeekOrigin.Begin);
+            var length = i < _count - 1
+                ? _offsets[i + 1] - _offsets[i]
+                : reader.BaseStream.Length - _offsets[i];
             Data[i] = reader.ReadBytes((int)length);
         }
     }

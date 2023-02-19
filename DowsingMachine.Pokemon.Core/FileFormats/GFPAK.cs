@@ -1,5 +1,4 @@
 ﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Projects;
 using PBT.DowsingMachine.Utilities.Codecs;
 using SoulsFormats;
 using System.Diagnostics;
@@ -7,22 +6,23 @@ using System.Diagnostics;
 namespace PBT.DowsingMachine.Pokemon.Core.FileFormats;
 
 // GraPHic PAcKage
-public class GFPAK : ICollectionArchive<byte[]>, ILargeArchive
+public class GFPAK : ICollectionArchive<ulong, byte[]>, IDisposable
 {
     public const string Magic = "GFLXPACK"; // 0x4B434150_584C4647
 
-    public GfpakHeader Header { get; set; }
-    public ulong[] FileHashArray { get; set; }
-    public FolderInfo[] Folders { get; set; }
-    public FileDataInfo[] Files { get; set; }
+    private GfpakHeader Header { get; set; }
+    private ulong[] FileHashArray { get; set; }
+    private FolderInfo[] Folders { get; set; }
+    private FileDataInfo[] Files { get; set; }
 
-    public byte[] this[int index] => GetData(index);
-    public byte[] this[uint hash] => GetData(Array.IndexOf(FileHashArray, hash));
-    public byte[] this[string name] => GetData(Array.IndexOf(FileHashArray, FnvHash.Fnv1a_64(name)));
-
-    private Stream Stream { get; set; }
     private BinaryReader Reader { get; set; }
 
+    public int Count => Files.Length;
+    public ulong[] Keys => FileHashArray;
+
+    public byte[] this[int index] => GetData(index);
+    public byte[] this[ulong hash] => GetData(Array.IndexOf(FileHashArray, hash));
+    public byte[] this[string name] => GetData(Array.IndexOf(FileHashArray, FnvHash.Fnv1a_64(name)));
 
     public GFPAK()
     {
@@ -32,44 +32,30 @@ public class GFPAK : ICollectionArchive<byte[]>, ILargeArchive
 
     public void Open(string path)
     {
-        Stream = File.OpenRead(path);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(File.OpenRead(path));
 
         Load(Reader);
     }
 
     public void Open(byte[] data)
     {
-        Stream = new MemoryStream(data);
-        Reader = new BinaryReader(Stream);
+        Reader = new BinaryReader(new MemoryStream(data));
 
         Load(Reader);
     }
 
-    public void Open(Stream stream)
+    public IEnumerable<Entry<byte[]>> AsEnumerable()
     {
-        Stream = stream;
-        Reader = new BinaryReader(stream);
-
-        Load(Reader);
-    }
-
-    public IEnumerable<Entry<byte[]>> Entries
-    {
-        get
+        foreach (var folder in Folders)
         {
-            foreach (var folder in Folders)
+            var dir = new string[] { folder.Hash.ToString("X8") };
+            foreach (var file in folder.FileInfoArray)
             {
-                var parents = new string[] { folder.Hash.ToString("X8") };
-                foreach (var file in folder.FileInfoArray)
+                var data = GetData(file.FileIndex);
+                yield return new Entry<byte[]>(data, $"{file.Hash:X8}", file.FileIndex)
                 {
-                    var data = GetData(file.FileIndex);
-                    var name = file.Hash.ToString("X8");
-                    yield return new Entry<byte[]>(data, name, file.FileIndex)
-                    {
-                        Parents = parents.ToArray(),
-                    };
-                }
+                    Directories = dir.ToArray(),
+                };
             }
         }
     }
@@ -83,7 +69,6 @@ public class GFPAK : ICollectionArchive<byte[]>, ILargeArchive
         if (info.CompressionType > 0)
         {
             data = Decompress(data, (int)info.DecompressedSize, info.CompressionType);
-
         }
         return data;
     }
@@ -166,10 +151,8 @@ public class GFPAK : ICollectionArchive<byte[]>, ILargeArchive
 
     public void Dispose()
     {
-        Stream?.Dispose();
         Reader?.Dispose();
     }
-
 
     //[StructLayout(LayoutKind.Sequential)]
     public class GfpakHeader

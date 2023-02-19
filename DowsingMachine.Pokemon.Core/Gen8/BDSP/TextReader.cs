@@ -1,77 +1,56 @@
-﻿using PBT.DowsingMachine.Projects;
+﻿using PBT.DowsingMachine.Structures;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen8;
 
-public class TextEntry
-{
-    public string Name { get; set; }
-    public WordData[] Words { get; set; }
-    public string Text { get; set; }
-}
+public record TextEntry(string Label, string Text);
 
-public class WordData
+public class TextTable
 {
-    public int patternID { get; set; }
-    public int eventID { get; set; }
-    public int tagIndex { get; set; }
-    public double tagValue { get; set; }
-    public string str { get; set; }
-    public double strWidth { get; set; }
-}
+    public bool Name { get; set; }
+    public TextEntry[] Entries { get; set; }
+    public bool Format { get; set; } = false;
+    public string Langcode { get; set; } = "";
 
-public class TextReader : DataReader<IEnumerable<Tuple<string, TextEntry[]>>>
-{
-    public string Lang { get; set; }
-    public bool Format;
+    private string Filename;
 
-    public TextReader(string lang, string path) : base(path)
+    public TextTable(string filename)
     {
-        Lang = lang;
+        Filename = filename;
     }
 
-    protected override IEnumerable<Tuple<string, TextEntry[]>> Open()
+    public void Load()
     {
-        var path = Path.Combine(Project.As<PokemonProjectNS>().OriginalFolder, RelatedPath);
-        var filelist = Directory.GetFiles(path, "*.json");
-        foreach (var file in filelist)
-        {
-            var list = GetList(file, Format);
-            yield return new Tuple<string, TextEntry[]>(file, list);
-        }
-    }
-
-    public TextEntry[] GetList(string filename, bool format)
-    {
-        var text = File.ReadAllText(filename);
+        if (Entries != null) return;
+        var text = File.ReadAllText(Filename);
         var json = JsonNode.Parse(text);
         var labelDataArray = json["labelDataArray"] as JsonArray;
-        var dict = labelDataArray.Select(x => new TextEntry()
+        Entries = labelDataArray.Select(x =>
         {
-            Name = x["labelName"].ToString(),
-            Text = Join(x["wordDataArray"].Deserialize<WordData[]>(), format)
+            var label = x["labelName"].ToString();
+            var text = Join(x["wordDataArray"].Deserialize<WordData[]>(new JsonSerializerOptions() { PropertyNameCaseInsensitive = true } ));
+            return new TextEntry(label, text);
         }).ToArray();
-        return dict;
     }
-
-    private string Join(WordData[] words, bool format)
+    
+    private string Join(WordData[] words)
     {
         var text = "";
         for (int i = 0; i < words.Length; i++)
         {
-            switch (words[i].patternID)
+            switch (words[i].PatternID)
             {
                 case 0:
                 case 7:
                     if (i > 0)
                     {
                         var addSpace = false;
-                        if (words[i - 1].patternID == 2 || words[i - 1].patternID == 3 || words[i - 1].patternID == 4 || words[i - 1].patternID == 5)
+                        if (words[i - 1].PatternID == 2 || words[i - 1].PatternID == 3 || words[i - 1].PatternID == 4 || words[i - 1].PatternID == 5)
                         {
                             addSpace = false;
                         }
-                        else if (text.Length > 0 && words[i].str.Length > 0)
+                        else if (text.Length > 0 && words[i].Str.Length > 0)
                         {
                             addSpace = true;
                         }
@@ -79,15 +58,15 @@ public class TextReader : DataReader<IEnumerable<Tuple<string, TextEntry[]>>>
                         if (addSpace)
                         {
                             var c1 = text[^1];
-                            var c2 = words[i].str[0];
-                            if (Lang.StartsWith("ja"))
+                            var c2 = words[i].Str[0];
+                            if (Langcode.StartsWith("ja"))
                             {
                                 if (!char.IsPunctuation(c1) && !string.IsNullOrWhiteSpace($"{c1}") && !char.IsPunctuation(c2) && !string.IsNullOrWhiteSpace($"{c2}"))
                                 {
                                     text += "　";
                                 }
                             }
-                            else if (Lang.StartsWith("zh"))
+                            else if (Langcode.StartsWith("zh"))
                             {
                             }
                             else
@@ -100,7 +79,7 @@ public class TextReader : DataReader<IEnumerable<Tuple<string, TextEntry[]>>>
                         }
                     }
 
-                    text += words[i].str;
+                    text += words[i].Str;
                     break;
 
                 case 5:
@@ -110,9 +89,9 @@ public class TextReader : DataReader<IEnumerable<Tuple<string, TextEntry[]>>>
                 case 2:
                 case 3:
                 case 4:
-                    if (!format)
+                    if (!Format)
                     {
-                        text += words[i].str;
+                        text += words[i].Str;
                     }
                     break;
 
@@ -121,9 +100,9 @@ public class TextReader : DataReader<IEnumerable<Tuple<string, TextEntry[]>>>
             }
         }
 
-        if (format)
+        if (Format)
         {
-            if (Lang.StartsWith("en") || Lang.StartsWith("fr") || Lang.StartsWith("de") || Lang.StartsWith("it") || Lang.StartsWith("es"))
+            if (Langcode.StartsWith("en") || Langcode.StartsWith("fr") || Langcode.StartsWith("de") || Langcode.StartsWith("it") || Langcode.StartsWith("es"))
             {
                 text = text.Replace("‘", "'");
                 text = text.Replace("’", "'");
@@ -135,4 +114,62 @@ public class TextReader : DataReader<IEnumerable<Tuple<string, TextEntry[]>>>
         return text;
     }
 
+    private class WordData
+    {
+        public int PatternID { get; set; }
+        public int EventID { get; set; }
+        public int TagIndex { get; set; }
+        public double TagValue { get; set; }
+        public string Str { get; set; }
+        public double StrWidth { get; set; }
+    }
 }
+
+public class TextTableCollection : Dictionary<string, TextTable>
+{
+    public TextTableCollection(PathInfo[] files)
+    {
+        foreach (var file in files)
+        {
+            Add(Path.GetFileNameWithoutExtension(file.FullPath), new TextTable(file.FullPath));
+        }
+    }
+
+}
+
+
+//public class TextReader : DataReader<IEnumerable<Tuple<string, TextEntry[]>>>
+//{
+//    public string Lang { get; set; }
+//    public bool Format;
+
+//    public TextReader(string lang, string path)
+//    {
+//        Lang = lang;
+//    }
+
+//    //protected override IEnumerable<Tuple<string, TextEntry[]>> Open()
+//    //{
+//    //    var path = Path.Combine(Project.As<PokemonProjectNS>().OriginalFolder, RelatedPath);
+//    //    var filelist = Directory.GetFiles(path, "*.json");
+//    //    foreach (var file in filelist)
+//    //    {
+//    //        var list = GetList(file, Format);
+//    //        yield return new Tuple<string, TextEntry[]>(file, list);
+//    //    }
+//    //}
+
+//    public TextEntry[] GetList(string filename, bool format)
+//    {
+//        var text = File.ReadAllText(filename);
+//        var json = JsonNode.Parse(text);
+//        var labelDataArray = json["labelDataArray"] as JsonArray;
+//        var dict = labelDataArray.Select(x => new TextEntry()
+//        {
+//            Name = x["labelName"].ToString(),
+//            Text = Join(x["wordDataArray"].Deserialize<WordData[]>(), format)
+//        }).ToArray();
+//        return dict;
+//    }
+
+//}

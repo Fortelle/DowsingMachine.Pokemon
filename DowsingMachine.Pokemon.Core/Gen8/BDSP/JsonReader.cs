@@ -3,36 +3,31 @@ using System.Text.Json.Nodes;
 
 namespace PBT.DowsingMachine.Pokemon.Core.Gen8;
 
-public class JsonReader : DataReader<JsonNode>
+public class JsonReader : DataReaderBase<JsonNode>, IDataReader<string, JsonNode>
 {
     public string NodeName;
-    public JsonReader(string name) : base(name)
+
+    public JsonReader()
     {
     }
 
-    public JsonReader(string name, string nodename) : base(name)
+    public JsonReader(string nodename)
     {
         NodeName = nodename;
     }
 
-    protected override JsonNode Open()
+    public JsonNode Read(string filename)
     {
-        var path = Project.As<IFolderProject>().GetPath(RelatedPath);
-        var text = File.ReadAllText(path);
+        var text = File.ReadAllText(filename);
         var json = JsonNode.Parse(text);
-        return json;
-    }
-
-    protected override JsonNode Read(JsonNode cache)
-    {
         if (string.IsNullOrEmpty(NodeName))
         {
-            return cache;
+            return json;
         }
         else
         {
-            return cache[NodeName];
+            return json[NodeName];
         }
     }
-}
 
+}

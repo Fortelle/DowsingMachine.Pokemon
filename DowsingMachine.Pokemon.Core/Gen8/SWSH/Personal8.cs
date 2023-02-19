@@ -5,12 +5,13 @@ using System.Runtime.InteropServices;
 namespace PBT.DowsingMachine.Pokemon.Core.Gen8;
 
 [StructLayout(LayoutKind.Sequential)]
+[StringReference(@"monsname")]
 public class Personal8
 {
     // 0x00
     public byte Basic_hp;
     public byte Basic_atk;
-    public byte Basic_aef;
+    public byte Basic_def;
     public byte Basic_agi;
 
     // 0x04

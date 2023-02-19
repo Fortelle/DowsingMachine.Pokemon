@@ -20,6 +20,8 @@ internal static class Program
 
         DowsingMachineApp.Initialize();
 
+        DowsingMachineApp.Config.Set("PreviewLanguage", "ja");
+
         Application.Run(CreateProjectBrowser());
     }
 
@@ -28,19 +30,21 @@ internal static class Program
         var frm = new ProjectBrowser();
         frm.LoadProjects();
 
+        var lastSelectedProjectId = DowsingMachineApp.Config.Get<string>("LastSelectedProjectId");
+
         frm.FormClosed += (s, e) =>
         {
-            if (frm.SelectedProject != null && frm.SelectedProject.Id != DowsingMachineApp.Config.LastSelectedProjectId)
+            if (frm.SelectedProject != null && frm.SelectedProject.Id != lastSelectedProjectId)
             {
-                DowsingMachineApp.Config.LastSelectedProjectId = frm.SelectedProject.Id;
+                DowsingMachineApp.Config.Set("LastSelectedProjectId", frm.SelectedProject.Id);
             }
 
             DowsingMachineApp.Finalize();
         };
 
-        if (!string.IsNullOrEmpty(DowsingMachineApp.Config.LastSelectedProjectId))
+        if (!string.IsNullOrEmpty(lastSelectedProjectId))
         {
-            var proj = DowsingMachineApp.GetProject(DowsingMachineApp.Config.LastSelectedProjectId);
+            var proj = DowsingMachineApp.GetProject(lastSelectedProjectId);
             if (proj != null)
             {
                 frm.SelectProject(proj, true);
